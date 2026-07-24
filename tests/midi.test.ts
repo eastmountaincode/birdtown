@@ -18,6 +18,9 @@ import {
   MPK_MINI_KNOB_CONTROLS,
   parseControlChange,
   parseNoteMessage,
+  parsePitchBend,
+  pitchBendRatio,
+  PITCH_BEND_RANGE_SEMITONES,
   playableRepeatRateForMidiNote,
   repeatRateForMidiNote,
   resolveMidiInput,
@@ -219,6 +222,27 @@ describe("MPK mini controls", () => {
     });
     expect(parseNoteMessage([0x90, 60, 0])?.type).toBe("off");
     expect(parseNoteMessage([0xb0, 24, 1])).toBeNull();
+  });
+
+  test("parses the spring-loaded pitch wheel as centered 14-bit pitch bend", () => {
+    expect(PITCH_BEND_RANGE_SEMITONES).toBe(2);
+    expect(parsePitchBend([0xe0, 0, 64])).toEqual({
+      channel: 0,
+      value: 8192,
+    });
+    expect(parsePitchBend([0xe2, 127, 127])).toEqual({
+      channel: 2,
+      value: 16383,
+    });
+    expect(parsePitchBend([0xe0, 0, 0])?.value).toBe(0);
+    expect(parsePitchBend([0xb0, 24, 1])).toBeNull();
+  });
+
+  test("bends two semitones around the selected pitch and returns exactly", () => {
+    expect(pitchBendRatio(8192)).toBe(1);
+    expect(pitchBendRatio(16383)).toBeCloseTo(Math.pow(2, 2 / 12));
+    expect(pitchBendRatio(0)).toBeCloseTo(Math.pow(2, -2 / 12));
+    expect(pitchBendRatio(12288)).toBeCloseTo(Math.pow(2, 1 / 12), 4);
   });
 
   test("preserves the centered bass range and extends octave-up to C3", () => {

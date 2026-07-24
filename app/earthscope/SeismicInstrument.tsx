@@ -47,6 +47,7 @@ export function SeismicInstrument() {
     controls,
     onHeldKeysChange: changeHeldKeys,
     setControls,
+    setPitchBendRatio: audio.setPitchBendRatio,
     setRepeatsPerSecond: audio.setRepeatsPerSecond,
   });
 

@@ -19,6 +19,8 @@ import {
   MPK_MINI_KEY_CHANNEL,
   parseControlChange,
   parseNoteMessage,
+  parsePitchBend,
+  pitchBendRatio,
   playableRepeatRateForMidiNote,
   resolveMidiInputSelection,
   type MidiInputOption,
@@ -53,11 +55,13 @@ export function useMidiControls({
   controls,
   onHeldKeysChange,
   setControls,
+  setPitchBendRatio,
   setRepeatsPerSecond,
 }: {
   controls: VoiceControls;
   onHeldKeysChange: (hasHeldKeys: boolean) => void;
   setControls: Dispatch<SetStateAction<VoiceControls>>;
+  setPitchBendRatio: (ratio: number) => void;
   setRepeatsPerSecond: (value: number) => void;
 }) {
   const [connection, setConnection] =
@@ -74,6 +78,7 @@ export function useMidiControls({
   const hasHeldKeysRef = useRef(false);
   const onHeldKeysChangeRef = useRef(onHeldKeysChange);
   const pendingInputsRef = useRef(new Map<string, MIDIInput>());
+  const pitchBendInputIdRef = useRef<string | null>(null);
   const preferredSelectionKeyRef = useRef<string | null>(null);
   const sampleCountTargetRef = useRef<number | null>(null);
   const selectionGenerationRef = useRef(0);
@@ -138,6 +143,20 @@ export function useMidiControls({
     onHeldKeysChangeRef.current(hasHeldKeys);
   }, []);
 
+  const resetPitchBend = useCallback(
+    (inputId?: string) => {
+      if (
+        inputId !== undefined &&
+        pitchBendInputIdRef.current !== inputId
+      ) {
+        return;
+      }
+      pitchBendInputIdRef.current = null;
+      setPitchBendRatio(1);
+    },
+    [setPitchBendRatio],
+  );
+
   const closeInput = useCallback((input: MIDIInput) => {
     input.onmidimessage = null;
     const existing = closingByInputRef.current.get(input);
@@ -161,6 +180,7 @@ export function useMidiControls({
     selectionGenerationRef.current += 1;
     desiredInputsRef.current.clear();
     setHeldNotes([]);
+    resetPitchBend();
     sampleCountTargetRef.current = null;
 
     const inputs = new Set<MIDIInput>([
@@ -170,10 +190,11 @@ export function useMidiControls({
     activeInputsRef.current.clear();
     pendingInputsRef.current.clear();
     return Promise.all([...inputs].map(closeInput));
-  }, [closeInput, setHeldNotes]);
+  }, [closeInput, resetPitchBend, setHeldNotes]);
 
   const removeHeldNotesForInput = useCallback(
     (inputId: string) => {
+      resetPitchBend(inputId);
       const heldNotes = heldNotesRef.current;
       const wasActive = heldNotes.at(-1)?.inputId === inputId;
       const remaining = heldNotes.filter((held) => held.inputId !== inputId);
@@ -186,7 +207,7 @@ export function useMidiControls({
       }
       setHeldNotes(remaining);
     },
-    [selectRepeatRate, setHeldNotes],
+    [resetPitchBend, selectRepeatRate, setHeldNotes],
   );
 
   const handleMidiMessage = useCallback(
@@ -239,6 +260,18 @@ export function useMidiControls({
         return;
       }
 
+      const pitchBend = parsePitchBend(event.data);
+      if (
+        pitchBend &&
+        pitchBend.channel === MPK_MINI_KEY_CHANNEL &&
+        !isMpkDawPort(input)
+      ) {
+        const ratio = pitchBendRatio(pitchBend.value);
+        pitchBendInputIdRef.current = ratio === 1 ? null : input.id;
+        setPitchBendRatio(ratio);
+        return;
+      }
+
       const message = parseControlChange(event.data);
       if (!message) return;
       const mapped = Object.prototype.hasOwnProperty.call(
@@ -282,7 +315,12 @@ export function useMidiControls({
         }
       }
     },
-    [selectRepeatRate, setControls, setHeldNotes],
+    [
+      selectRepeatRate,
+      setControls,
+      setHeldNotes,
+      setPitchBendRatio,
+    ],
   );
 
   const reconcileInputSelection = useCallback(

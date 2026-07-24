@@ -13,8 +13,11 @@ export const MPK_MINI_KNOB_CONTROLS: Readonly<Record<number, VoiceControlKey>> =
 };
 
 export const MPK_MINI_KEY_CHANNEL = 0;
+export const PITCH_BEND_RANGE_SEMITONES = 2;
 
 const MIDI_KEY_TRANSPOSE_SEMITONES = -36;
+const MIDI_PITCH_BEND_CENTER = 8192;
+const MIDI_PITCH_BEND_MAX = 16383;
 // Preserve the established repeat-knob sensitivity after expanding the range.
 const REPEAT_RATE_MIDI_RATIO = Math.pow(40 / 0.01, 1 / 256);
 const SAMPLE_COUNT_MIDI_RATIO = 1.025;
@@ -249,6 +252,58 @@ export function parseNoteMessage(
     type: isNoteOn ? "on" : "off",
     velocity: Math.max(0, Math.min(127, Math.round(velocity))),
   };
+}
+
+export interface MidiPitchBendMessage {
+  channel: number;
+  value: number;
+}
+
+export function parsePitchBend(
+  data: ArrayLike<number>,
+): MidiPitchBendMessage | null {
+  if (data.length < 3) return null;
+  const status = data[0];
+  const leastSignificantByte = data[1];
+  const mostSignificantByte = data[2];
+  if (
+    status === undefined ||
+    leastSignificantByte === undefined ||
+    mostSignificantByte === undefined ||
+    (status & 0xf0) !== 0xe0
+  ) {
+    return null;
+  }
+
+  const lsb = Math.max(0, Math.min(127, Math.round(leastSignificantByte)));
+  const msb = Math.max(0, Math.min(127, Math.round(mostSignificantByte)));
+  return {
+    channel: status & 0x0f,
+    value: (msb << 7) | lsb,
+  };
+}
+
+export function pitchBendRatio(
+  value: number,
+  rangeSemitones = PITCH_BEND_RANGE_SEMITONES,
+) {
+  const bend = Math.max(
+    0,
+    Math.min(
+      MIDI_PITCH_BEND_MAX,
+      Math.round(Number.isFinite(value) ? value : MIDI_PITCH_BEND_CENTER),
+    ),
+  );
+  const distanceFromCenter = bend - MIDI_PITCH_BEND_CENTER;
+  const normalized =
+    distanceFromCenter < 0
+      ? distanceFromCenter / MIDI_PITCH_BEND_CENTER
+      : distanceFromCenter /
+        (MIDI_PITCH_BEND_MAX - MIDI_PITCH_BEND_CENTER);
+  const finiteRange = Number.isFinite(rangeSemitones)
+    ? Math.max(0, rangeSemitones)
+    : PITCH_BEND_RANGE_SEMITONES;
+  return Math.pow(2, (normalized * finiteRange) / 12);
 }
 
 export function repeatRateForMidiNote(note: number) {

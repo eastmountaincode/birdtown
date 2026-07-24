@@ -14,6 +14,7 @@ export interface SignalSource {
 export interface SeismicAudioEngine {
   measure: () => number;
   setGateOpen: (open: boolean) => void;
+  setPitchBendRatio: (ratio: number) => void;
   setRepeatsPerSecond: (value: number) => void;
   stop: () => Promise<void>;
 }
@@ -122,8 +123,12 @@ export async function startSeismicAudio(
   let activeSampleRate = current.sampleRate;
   let activeSampleCount = initialValues.length;
   let activeRepeats = controls.repeatsPerSecond;
+  let pitchBendRatio = 1;
   let phase = 0;
   let phaseUpdatedAt = context.currentTime;
+
+  const effectiveRepeatRate = (repeatsPerSecond: number) =>
+    repeatsPerSecond * pitchBendRatio;
 
   activeSource.loop = true;
   activeSource.buffer = activeBuffer;
@@ -160,7 +165,10 @@ export async function startSeismicAudio(
     const nextControls = getControls();
     const latest = getSignal();
     const now = context.currentTime;
-    setActiveRepeatRate(nextControls.repeatsPerSecond, now);
+    setActiveRepeatRate(
+      effectiveRepeatRate(nextControls.repeatsPerSecond),
+      now,
+    );
 
     const nextValues = loopValues(latest, nextControls.sampleCount);
     if (
@@ -176,7 +184,7 @@ export async function startSeismicAudio(
       nextSource.buffer = nextBuffer;
       nextSource.playbackRate.value = playbackRateForRepeats(
         nextBuffer.duration,
-        nextControls.repeatsPerSecond,
+        effectiveRepeatRate(nextControls.repeatsPerSecond),
       );
       nextGain.gain.setValueAtTime(0, now);
       nextGain.gain.linearRampToValueAtTime(1, now + 0.03);
@@ -215,8 +223,21 @@ export async function startSeismicAudio(
       gate.gain.cancelScheduledValues(now);
       gate.gain.setTargetAtTime(open ? 1 : 0, now, 0.006);
     },
+    setPitchBendRatio: (ratio) => {
+      pitchBendRatio =
+        Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+      setActiveRepeatRate(
+        effectiveRepeatRate(getControls().repeatsPerSecond),
+        context.currentTime,
+        false,
+      );
+    },
     setRepeatsPerSecond: (value) => {
-      setActiveRepeatRate(value, context.currentTime, false);
+      setActiveRepeatRate(
+        effectiveRepeatRate(value),
+        context.currentTime,
+        false,
+      );
     },
     stop: async () => {
       window.clearInterval(updateTimer);

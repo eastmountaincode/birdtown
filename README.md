@@ -29,6 +29,8 @@ The knob mapping remains fixed—there is no knob-learning step:
 | 27 | Resonance |
 
 The MPK program must send relative knob values.
+The spring-loaded pitch-bend wheel bends the selected pitch by two semitones
+in either direction and returns to the selected pitch at center.
 
 ## Code layout
 

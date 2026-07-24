@@ -22,6 +22,7 @@ export function useSeismicAudio({
   const controlsRef = useRef(controls);
   const gateOpenRef = useRef(gateOpen);
   const meterTimerRef = useRef(0);
+  const pitchBendRatioRef = useRef(1);
   const rateRef = useRef(sampleRate);
   const runRef = useRef(0);
   const samplesRef = useRef(samples);
@@ -66,6 +67,13 @@ export function useSeismicAudio({
     audioRef.current?.setRepeatsPerSecond(value);
   }, []);
 
+  const setPitchBendRatio = useCallback((ratio: number) => {
+    const nextRatio =
+      Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+    pitchBendRatioRef.current = nextRatio;
+    audioRef.current?.setPitchBendRatio(nextRatio);
+  }, []);
+
   const togglePlayback = useCallback(async () => {
     if (playing) {
       await stop();
@@ -89,6 +97,7 @@ export function useSeismicAudio({
       }
       audioRef.current = audio;
       audio.setGateOpen(gateOpenRef.current);
+      audio.setPitchBendRatio(pitchBendRatioRef.current);
       setPlaying(true);
       meterTimerRef.current = window.setInterval(() => {
         const decibels = 20 * Math.log10(Math.max(audio.measure(), 0.000001));
@@ -122,6 +131,7 @@ export function useSeismicAudio({
     level,
     playing,
     setGateOpen,
+    setPitchBendRatio,
     setRepeatsPerSecond,
     togglePlayback,
   };
