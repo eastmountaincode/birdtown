@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Birdtown
 
-## Getting Started
+A Next.js browser instrument driven by the live EarthScope `CO.BIRD.00.HHZ`
+waveform.
 
-First, run the development server:
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## MPK mini
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Press **Connect MPK mini** once. The app prefers `MPK mini IV MIDI Port`, which
+is the MPK's normal performance-and-knob port. Use the **Input** menu to switch
+to the DAW, Software Control, Clarett, or another browser-visible MIDI input if
+that is where your current MPK preset is sending data.
 
-## Learn More
+The status changes from `waiting for knob data` to `receiving knob data` only
+after a real mapped control message arrives. Connecting or disconnecting another
+CoreMIDI device causes the selected input to be reopened automatically.
 
-To learn more about Next.js, take a look at the following resources:
+The knob mapping remains fixed—there is no knob-learning step:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Knob CC | Control |
+| --- | --- |
+| 24 | Samples in loop |
+| 25 | Repeats per second |
+| 26 | Low-pass |
+| 27 | Resonance |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Relative mode is the default. Choose Absolute only if the MPK program is set to
+send absolute knob values.
 
-## Deploy on Vercel
+## Code layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `app/lib/useDataLink.ts` owns the EarthScope connection and rolling buffer.
+- `app/earthscope/useMidiControls.ts` owns Web MIDI connection lifecycle.
+- `app/earthscope/midi.ts` contains the pure MPK mapping math.
+- `app/earthscope/useSeismicAudio.ts` owns playback state.
+- `app/earthscope/audioEngine.ts` renders and refreshes the live audio loop.
+- `app/earthscope/SeismicInstrument.tsx` only composes the interface.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Verification
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
