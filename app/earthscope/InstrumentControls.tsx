@@ -68,12 +68,12 @@ export function InstrumentControls({
             value={controls.cutoff}
           />
           <output htmlFor="cutoff">{controls.cutoff} Hz</output>
-          <LowPassLfoPanel
-            cutoff={controls.cutoff}
-            onChange={onLowPassLfoChange}
-            settings={lowPassLfo}
-          />
         </div>
+        <LowPassLfoPanel
+          cutoff={controls.cutoff}
+          onChange={onLowPassLfoChange}
+          settings={lowPassLfo}
+        />
         <RangeControl
           id="resonance"
           label="Resonance"
