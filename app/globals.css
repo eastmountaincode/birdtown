@@ -239,10 +239,25 @@ legend {
   font-size: 0.8rem;
 }
 
+.low-pass-lfo__sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
+}
+
+.low-pass-lfo__sync input {
+  min-height: auto;
+  margin: 0;
+  padding: 0;
+}
+
 .low-pass-lfo__controls {
   display: flex;
   align-items: flex-end;
-  gap: 0.55rem;
+  justify-content: space-between;
+  gap: 0.35rem;
 }
 
 .dial-control {
@@ -309,20 +324,6 @@ legend {
   font-size: 0.65rem;
   text-align: center;
   white-space: nowrap;
-}
-
-.low-pass-lfo__timing {
-  display: grid;
-  gap: 0.15rem;
-  font-size: 0.75rem;
-  line-height: 1;
-}
-
-.low-pass-lfo__timing select {
-  width: 6.5rem;
-  min-height: 1.5rem;
-  padding: 0;
-  font-size: 0.75rem;
 }
 
 .midi-controls label {

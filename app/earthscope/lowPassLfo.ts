@@ -3,6 +3,7 @@ import { clampControl, CONTROL_SPECS } from "./controls";
 export interface LowPassLfoSettings {
   depth: number;
   rate: number;
+  syncEnabled: boolean;
   tempoBpm: number;
   timing: LowPassLfoTiming;
 }
@@ -16,7 +17,6 @@ export const LOW_PASS_LFO_TEMPO_MIN = 30;
 export const LOW_PASS_LFO_TEMPO_MAX = 300;
 
 export const LOW_PASS_LFO_TIMINGS = [
-  { beats: null, label: "Free", value: "free" },
   { beats: 4, label: "1/1", value: "whole" },
   { beats: 2, label: "1/2", value: "half" },
   { beats: 1.5, label: "1/4 dotted", value: "quarter-dotted" },
@@ -37,8 +37,9 @@ export type LowPassLfoTiming =
 export const DEFAULT_LOW_PASS_LFO: LowPassLfoSettings = {
   depth: 0,
   rate: 0.5,
+  syncEnabled: false,
   tempoBpm: 120,
-  timing: "free",
+  timing: "eighth",
 };
 
 function clamp(value: number, minimum: number, maximum: number) {
@@ -54,10 +55,6 @@ export function clampLowPassLfo(key: LowPassLfoKey, value: number) {
     );
   }
   return clamp(value, LOW_PASS_LFO_RATE_MIN, LOW_PASS_LFO_RATE_MAX);
-}
-
-export function isLowPassLfoTiming(value: string): value is LowPassLfoTiming {
-  return LOW_PASS_LFO_TIMINGS.some((timing) => timing.value === value);
 }
 
 export function lowPassLfoDepthHz(cutoff: number, depth: number) {
@@ -88,32 +85,38 @@ export function positionToLowPassLfoRate(position: number) {
   );
 }
 
-export function lowPassLfoTempoToPosition(tempoBpm: number) {
-  const clampedTempo = clampLowPassLfo("tempoBpm", tempoBpm);
-  return (
-    (clampedTempo - LOW_PASS_LFO_TEMPO_MIN) /
-    (LOW_PASS_LFO_TEMPO_MAX - LOW_PASS_LFO_TEMPO_MIN)
-  );
+export function lowPassLfoTimeToPosition(rate: number) {
+  return 1 - lowPassLfoRateToPosition(rate);
 }
 
-export function positionToLowPassLfoTempo(position: number) {
-  return clampLowPassLfo(
-    "tempoBpm",
-    LOW_PASS_LFO_TEMPO_MIN +
-      clamp(position, 0, 1) *
-        (LOW_PASS_LFO_TEMPO_MAX - LOW_PASS_LFO_TEMPO_MIN),
+export function positionToLowPassLfoTimeRate(position: number) {
+  return positionToLowPassLfoRate(1 - clamp(position, 0, 1));
+}
+
+export function lowPassLfoTimingToPosition(timing: LowPassLfoTiming) {
+  const index = LOW_PASS_LFO_TIMINGS.findIndex(
+    (candidate) => candidate.value === timing,
   );
+  const safeIndex = index < 0 ? 0 : index;
+  return safeIndex / Math.max(1, LOW_PASS_LFO_TIMINGS.length - 1);
+}
+
+export function positionToLowPassLfoTiming(position: number) {
+  const index = Math.round(
+    clamp(position, 0, 1) * (LOW_PASS_LFO_TIMINGS.length - 1),
+  );
+  return LOW_PASS_LFO_TIMINGS[index] ?? LOW_PASS_LFO_TIMINGS[0];
 }
 
 export function lowPassLfoRateHz(settings: LowPassLfoSettings) {
-  if (settings.timing === "free") {
+  if (!settings.syncEnabled) {
     return clampLowPassLfo("rate", settings.rate);
   }
 
   const timing = LOW_PASS_LFO_TIMINGS.find(
     (candidate) => candidate.value === settings.timing,
   );
-  if (!timing?.beats) return clampLowPassLfo("rate", settings.rate);
+  if (!timing) return clampLowPassLfo("rate", settings.rate);
 
   const beatsPerSecond =
     clampLowPassLfo("tempoBpm", settings.tempoBpm) / 60;

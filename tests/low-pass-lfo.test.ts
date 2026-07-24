@@ -8,9 +8,11 @@ import {
   lowPassLfoDepthHz,
   lowPassLfoRateHz,
   lowPassLfoRateToPosition,
-  lowPassLfoTempoToPosition,
+  lowPassLfoTimeToPosition,
+  lowPassLfoTimingToPosition,
   positionToLowPassLfoRate,
-  positionToLowPassLfoTempo,
+  positionToLowPassLfoTimeRate,
+  positionToLowPassLfoTiming,
 } from "../app/earthscope/lowPassLfo";
 
 describe("low-pass LFO", () => {
@@ -46,20 +48,38 @@ describe("low-pass LFO", () => {
     }
   });
 
-  test("maps the tempo dial endpoints exactly", () => {
-    expect(lowPassLfoTempoToPosition(LOW_PASS_LFO_TEMPO_MIN)).toBe(0);
-    expect(lowPassLfoTempoToPosition(LOW_PASS_LFO_TEMPO_MAX)).toBe(1);
-    expect(positionToLowPassLfoTempo(0)).toBe(LOW_PASS_LFO_TEMPO_MIN);
-    expect(positionToLowPassLfoTempo(1)).toBe(LOW_PASS_LFO_TEMPO_MAX);
+  test("maps the free-time dial from fast to slow", () => {
+    expect(lowPassLfoTimeToPosition(LOW_PASS_LFO_RATE_MAX)).toBe(0);
+    expect(lowPassLfoTimeToPosition(LOW_PASS_LFO_RATE_MIN)).toBe(1);
+    expect(positionToLowPassLfoTimeRate(0)).toBeCloseTo(
+      LOW_PASS_LFO_RATE_MAX,
+    );
+    expect(positionToLowPassLfoTimeRate(1)).toBeCloseTo(
+      LOW_PASS_LFO_RATE_MIN,
+    );
+  });
+
+  test("maps the division dial across every musical timing", () => {
+    expect(positionToLowPassLfoTiming(0).value).toBe("whole");
+    expect(positionToLowPassLfoTiming(1).value).toBe("thirty-second");
+    expect(lowPassLfoTimingToPosition("whole")).toBe(0);
+    expect(lowPassLfoTimingToPosition("thirty-second")).toBe(1);
   });
 
   test("turns musical divisions into rates at the selected tempo", () => {
     const base = {
       depth: 0.5,
       rate: 0.5,
+      syncEnabled: true,
       tempoBpm: 120,
     };
-    expect(lowPassLfoRateHz({ ...base, timing: "free" })).toBe(0.5);
+    expect(
+      lowPassLfoRateHz({
+        ...base,
+        syncEnabled: false,
+        timing: "eighth",
+      }),
+    ).toBe(0.5);
     expect(lowPassLfoRateHz({ ...base, timing: "quarter" })).toBe(2);
     expect(lowPassLfoRateHz({ ...base, timing: "eighth" })).toBe(4);
     expect(lowPassLfoRateHz({ ...base, timing: "eighth-triplet" })).toBe(6);

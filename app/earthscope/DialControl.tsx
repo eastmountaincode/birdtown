@@ -10,6 +10,7 @@ interface DialControlProps {
   onChange: (position: number) => void;
   output: string;
   position: number;
+  step?: number;
   valueText: string;
 }
 
@@ -24,6 +25,7 @@ export function DialControl({
   onChange,
   output,
   position,
+  step = 0.01,
   valueText,
 }: DialControlProps) {
   const dragRef = useRef<{
@@ -74,7 +76,7 @@ export function DialControl({
             onChange(clampPosition(drag.position + (drag.y - event.clientY) / 120));
           }}
           onPointerUp={finishDrag}
-          step="any"
+          step={step}
           type="range"
           value={clampedPosition}
         />
