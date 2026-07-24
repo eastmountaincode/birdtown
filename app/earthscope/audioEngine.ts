@@ -4,6 +4,12 @@ import {
   effectiveLoopSampleCount,
   type VoiceControls,
 } from "./controls";
+import {
+  clampLowPassLfo,
+  DEFAULT_LOW_PASS_LFO,
+  lowPassLfoDepthHz,
+  type LowPassLfoSettings,
+} from "./lowPassLfo";
 import { prepareLoop, recent } from "./signal";
 
 export interface SignalSource {
@@ -66,6 +72,7 @@ export async function startSeismicAudio(
   getSignal: () => SignalSource,
   getControls: () => VoiceControls,
   getGateOpen: () => boolean = () => true,
+  getLowPassLfo: () => LowPassLfoSettings = () => DEFAULT_LOW_PASS_LFO,
 ): Promise<SeismicAudioEngine> {
   requestPlaybackAudioSession();
   const context = new AudioContext({ latencyHint: "interactive" });
@@ -92,8 +99,11 @@ export async function startSeismicAudio(
   const compressor = context.createDynamicsCompressor();
   const drive = context.createGain();
   const filter = context.createBiquadFilter();
+  const filterLfo = context.createOscillator();
+  const filterLfoDepth = context.createGain();
   const gate = context.createGain();
   const master = context.createGain();
+  const lowPassLfo = getLowPassLfo();
   analyser.fftSize = 1024;
   analyser.smoothingTimeConstant = 0.72;
   compressor.threshold.value = -12;
@@ -104,6 +114,15 @@ export async function startSeismicAudio(
   filter.type = "lowpass";
   filter.frequency.value = controls.cutoff;
   filter.Q.value = controls.resonance;
+  filterLfo.type = "sine";
+  filterLfo.frequency.value = clampLowPassLfo("rate", lowPassLfo.rate);
+  filterLfoDepth.gain.value = lowPassLfoDepthHz(
+    controls.cutoff,
+    lowPassLfo.depth,
+  );
+  filterLfo.connect(filterLfoDepth);
+  filterLfoDepth.connect(filter.frequency);
+  filterLfo.start();
   drive.gain.value = 0.9;
   let gateOpen = getGateOpen();
   gate.gain.value = gateOpen ? 1 : 0;
@@ -163,6 +182,7 @@ export async function startSeismicAudio(
 
   const updateTimer = window.setInterval(() => {
     const nextControls = getControls();
+    const nextLowPassLfo = getLowPassLfo();
     const latest = getSignal();
     const now = context.currentTime;
     setActiveRepeatRate(
@@ -204,6 +224,16 @@ export async function startSeismicAudio(
 
     filter.frequency.setTargetAtTime(nextControls.cutoff, now, 0.01);
     filter.Q.setTargetAtTime(nextControls.resonance, now, 0.01);
+    filterLfo.frequency.setTargetAtTime(
+      clampLowPassLfo("rate", nextLowPassLfo.rate),
+      now,
+      0.01,
+    );
+    filterLfoDepth.gain.setTargetAtTime(
+      lowPassLfoDepthHz(nextControls.cutoff, nextLowPassLfo.depth),
+      now,
+      0.01,
+    );
     master.gain.setTargetAtTime(nextControls.volume, now, 0.01);
   }, 50);
 

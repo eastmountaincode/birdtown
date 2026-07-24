@@ -3,15 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startSeismicAudio, type SeismicAudioEngine } from "./audioEngine";
 import type { VoiceControls } from "./controls";
+import type { LowPassLfoSettings } from "./lowPassLfo";
 
 export function useSeismicAudio({
   controls,
   gateOpen,
+  lowPassLfo,
   sampleRate,
   samples,
 }: {
   controls: VoiceControls;
   gateOpen: boolean;
+  lowPassLfo: LowPassLfoSettings;
   sampleRate: number;
   samples: number[];
 }) {
@@ -21,6 +24,7 @@ export function useSeismicAudio({
   const audioRef = useRef<SeismicAudioEngine | null>(null);
   const controlsRef = useRef(controls);
   const gateOpenRef = useRef(gateOpen);
+  const lowPassLfoRef = useRef(lowPassLfo);
   const meterTimerRef = useRef(0);
   const pitchBendRatioRef = useRef(1);
   const rateRef = useRef(sampleRate);
@@ -31,6 +35,10 @@ export function useSeismicAudio({
   useEffect(() => {
     controlsRef.current = controls;
   }, [controls]);
+
+  useEffect(() => {
+    lowPassLfoRef.current = lowPassLfo;
+  }, [lowPassLfo]);
 
   const setGateOpen = useCallback((open: boolean) => {
     gateOpenRef.current = open;
@@ -90,6 +98,7 @@ export function useSeismicAudio({
         () => ({ sampleRate: rateRef.current, samples: samplesRef.current }),
         () => controlsRef.current,
         () => gateOpenRef.current,
+        () => lowPassLfoRef.current,
       );
       if (run !== runRef.current) {
         await audio.stop();

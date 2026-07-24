@@ -10,6 +10,12 @@ import {
 } from "./controls";
 import { AboutDialog } from "./AboutDialog";
 import { InstrumentControls } from "./InstrumentControls";
+import {
+  clampLowPassLfo,
+  DEFAULT_LOW_PASS_LFO,
+  type LowPassLfoKey,
+} from "./lowPassLfo";
+import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { useMidiControls } from "./useMidiControls";
@@ -26,9 +32,11 @@ export function SeismicInstrument() {
   const hasHeldMidiKeysRef = useRef(false);
   const [latchEnabled, setLatchEnabled] = useState(true);
   const latchEnabledRef = useRef(true);
+  const [lowPassLfo, setLowPassLfo] = useState(DEFAULT_LOW_PASS_LFO);
   const audio = useSeismicAudio({
     controls,
     gateOpen: voiceGateOpen(latchEnabled, hasHeldMidiKeys),
+    lowPassLfo,
     sampleRate: signal.sampleRate,
     samples: signal.samples,
   });
@@ -70,6 +78,12 @@ export function SeismicInstrument() {
     },
     [setAudioGateOpen],
   );
+  const changeLowPassLfo = (key: LowPassLfoKey, value: number) => {
+    setLowPassLfo((current) => ({
+      ...current,
+      [key]: clampLowPassLfo(key, value),
+    }));
+  };
 
   return (
     <main>
@@ -110,12 +124,19 @@ export function SeismicInstrument() {
         />
 
         <div className="instrument-panels">
-          <InstrumentControls
-            availableSamples={signal.samples.length}
-            controls={controls}
-            onChange={changeControl}
-            sampleRate={signal.sampleRate}
-          />
+          <div className="instrument-control-row">
+            <InstrumentControls
+              availableSamples={signal.samples.length}
+              controls={controls}
+              onChange={changeControl}
+              sampleRate={signal.sampleRate}
+            />
+            <LowPassLfoPanel
+              cutoff={controls.cutoff}
+              onChange={changeLowPassLfo}
+              settings={lowPassLfo}
+            />
+          </div>
           <MidiPanel
             connect={midi.connect}
             connected={midi.connected}

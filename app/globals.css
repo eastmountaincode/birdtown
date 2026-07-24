@@ -190,6 +190,13 @@ legend {
   gap: 1rem;
 }
 
+.instrument-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 13rem;
+  align-items: stretch;
+  gap: 1rem;
+}
+
 .plain-fieldset {
   width: 100%;
   margin: 0;
@@ -218,6 +225,40 @@ legend {
   font-family: "Courier New", Courier, monospace;
   font-size: 0.85rem;
   text-align: right;
+  white-space: nowrap;
+}
+
+.lfo-panel {
+  min-width: 0;
+}
+
+.lfo-controls {
+  display: flex;
+  justify-content: space-around;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.lfo-control {
+  display: grid;
+  grid-template-rows: auto minmax(5rem, 1fr) auto;
+  align-items: center;
+  justify-items: center;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.lfo-control input[type="range"] {
+  width: 1.75rem;
+  height: 100%;
+  min-height: 5rem;
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+
+.lfo-control output {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 
@@ -348,6 +389,18 @@ legend {
   .control-row {
     grid-template-columns: 1fr;
     gap: 0.25rem;
+  }
+
+  .instrument-control-row {
+    grid-template-columns: 1fr;
+  }
+
+  .lfo-controls {
+    justify-content: flex-start;
+  }
+
+  .lfo-control {
+    min-height: 8rem;
   }
 
   .control-row output {
