@@ -10,7 +10,7 @@ export interface LowPassLfoSettings {
 
 export type LowPassLfoKey = "depth" | "rate" | "tempoBpm";
 
-export const LOW_PASS_LFO_RATE_MIN = 0.01;
+export const LOW_PASS_LFO_RATE_MIN = 0.1;
 export const LOW_PASS_LFO_RATE_MAX = 20;
 export const LOW_PASS_LFO_MINIMUM_FREQUENCY = 20;
 export const LOW_PASS_LFO_TEMPO_MIN = 30;

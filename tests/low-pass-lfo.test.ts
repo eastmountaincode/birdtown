@@ -41,7 +41,7 @@ describe("low-pass LFO", () => {
   });
 
   test("round-trips useful slow and fast rates", () => {
-    for (const rate of [0.01, 0.05, 0.5, 2, 10, 20]) {
+    for (const rate of [0.1, 0.25, 0.5, 2, 10, 20]) {
       expect(
         positionToLowPassLfoRate(lowPassLfoRateToPosition(rate)),
       ).toBeCloseTo(rate);
@@ -57,6 +57,7 @@ describe("low-pass LFO", () => {
     expect(positionToLowPassLfoTimeRate(1)).toBeCloseTo(
       LOW_PASS_LFO_RATE_MIN,
     );
+    expect(1 / positionToLowPassLfoTimeRate(1)).toBe(10);
   });
 
   test("maps the division dial across every musical timing", () => {
