@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  C4_REPEATS_PER_SECOND,
+  C5_REPEATS_PER_SECOND,
   clampControl,
   CONTROL_SPECS,
   effectiveLoopSampleCount,
@@ -19,11 +19,11 @@ describe("instrument controls", () => {
     expect(clampControl("sampleCount", 20_000)).toBe(12_000);
     expect(CONTROL_SPECS.repeatsPerSecond.step).toBe("any");
     expect(clampControl("repeatsPerSecond", 2.126789)).toBe(2.126789);
-    expect(C4_REPEATS_PER_SECOND).toBeCloseTo(261.6255653005986);
-    expect(CONTROL_SPECS.repeatsPerSecond.max).toBe(C4_REPEATS_PER_SECOND);
+    expect(C5_REPEATS_PER_SECOND).toBeCloseTo(523.2511306011972);
+    expect(CONTROL_SPECS.repeatsPerSecond.max).toBe(C5_REPEATS_PER_SECOND);
     expect(clampControl("repeatsPerSecond", 100)).toBe(100);
-    expect(clampControl("repeatsPerSecond", 300)).toBe(
-      C4_REPEATS_PER_SECOND,
+    expect(clampControl("repeatsPerSecond", 600)).toBe(
+      C5_REPEATS_PER_SECOND,
     );
     expect(clampControl("cutoff", Number.NaN)).toBe(80);
     expect(clampControl("volume", -1)).toBe(0);

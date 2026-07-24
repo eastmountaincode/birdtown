@@ -1,7 +1,7 @@
 import { EARTHSCOPE_MAX_SAMPLES } from "../lib/earthScopeConfig";
 
-export const C4_REPEATS_PER_SECOND =
-  440 * Math.pow(2, (60 - 69) / 12);
+export const C5_REPEATS_PER_SECOND =
+  440 * Math.pow(2, (72 - 69) / 12);
 
 export interface VoiceControls {
   cutoff: number;
@@ -31,7 +31,7 @@ export const CONTROL_SPECS: Record<VoiceControlKey, ControlSpec> = {
   },
   repeatsPerSecond: {
     min: 0.01,
-    max: C4_REPEATS_PER_SECOND,
+    max: C5_REPEATS_PER_SECOND,
     step: "any",
     midiStep: null,
     precision: 2,

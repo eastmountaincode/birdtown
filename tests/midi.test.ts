@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  C4_REPEATS_PER_SECOND,
+  C5_REPEATS_PER_SECOND,
   CONTROL_SPECS,
   DEFAULT_CONTROLS,
   type VoiceControls,
@@ -245,7 +245,7 @@ describe("MPK mini controls", () => {
     expect(pitchBendRatio(12288)).toBeCloseTo(Math.pow(2, 1 / 12), 4);
   });
 
-  test("preserves the centered bass range and extends octave-up to C4", () => {
+  test("preserves the centered bass range and extends octave-up to C5", () => {
     expect(repeatRateForMidiNote(48)).toBeCloseTo(16.3515978);
     expect(repeatRateForMidiNote(60)).toBeCloseTo(32.7031957);
     expect(repeatRateForMidiNote(69)).toBeCloseTo(55);
@@ -255,10 +255,11 @@ describe("MPK mini controls", () => {
     );
     expect(playableRepeatRateForMidiNote(72)).toBeCloseTo(65.4063913);
     expect(playableRepeatRateForMidiNote(84)).toBeCloseTo(130.8127827);
-    expect(playableRepeatRateForMidiNote(96)).toBeCloseTo(
-      C4_REPEATS_PER_SECOND,
+    expect(playableRepeatRateForMidiNote(96)).toBeCloseTo(261.6255653);
+    expect(playableRepeatRateForMidiNote(108)).toBeCloseTo(
+      C5_REPEATS_PER_SECOND,
     );
-    expect(playableRepeatRateForMidiNote(97)).toBeNull();
+    expect(playableRepeatRateForMidiNote(109)).toBeNull();
   });
 
   test("keeps a momentary gate open until the final key is released", () => {
