@@ -187,8 +187,8 @@ legend {
 
 .instrument-panels {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  align-items: stretch;
   gap: 1rem;
 }
 
@@ -239,20 +239,12 @@ legend {
 
 .low-pass-lfo {
   min-width: 0;
-  margin: 0;
-  border: 1px solid #000000;
-  padding: 0.25rem 0.4rem 0.35rem;
-}
-
-.low-pass-lfo legend {
-  font-size: 0.8rem;
 }
 
 .low-pass-lfo__sync {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  margin-left: 0.5rem;
+  gap: 0.4rem;
   cursor: pointer;
 }
 
@@ -263,76 +255,23 @@ legend {
 }
 
 .low-pass-lfo__controls {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.35rem;
-}
-
-.dial-control {
   display: grid;
-  justify-items: center;
-  gap: 0.1rem;
-  font-size: 0.75rem;
-  line-height: 1;
+  gap: 0.5rem;
 }
 
-.dial-control__dial {
-  position: relative;
-  display: block;
-  width: 2rem;
-  height: 2rem;
+.low-pass-lfo .control-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 0.5rem;
 }
 
-.dial-control__dial input {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: ns-resize;
-  touch-action: none;
+.low-pass-lfo .control-row > input {
+  grid-row: 2;
+  grid-column: 1 / -1;
 }
 
-.dial-control__face {
-  position: absolute;
-  inset: 0;
-  display: block;
-  border: 1px solid #000000;
-  border-radius: 50%;
-  background: #efefef;
-}
-
-.dial-control__indicator {
-  position: absolute;
-  inset: 0.2rem;
-  display: block;
-  transform: rotate(var(--dial-angle));
-}
-
-.dial-control__indicator::after {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 1px;
-  height: 0.6rem;
-  background: #000000;
-  content: "";
-  transform: translateX(-50%);
-}
-
-.dial-control__dial input:focus-visible + .dial-control__face {
-  outline: 2px solid Highlight;
-  outline-offset: 1px;
-}
-
-.dial-control output {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 0.65rem;
-  text-align: center;
-  white-space: nowrap;
+.low-pass-lfo .control-row output {
+  grid-row: 1;
+  grid-column: 2;
 }
 
 .midi-controls label {

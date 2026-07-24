@@ -1,4 +1,3 @@
-import { DialControl } from "./DialControl";
 import {
   clampLowPassLfo,
   lowPassLfoDepthHz,
@@ -10,6 +9,7 @@ import {
   positionToLowPassLfoTiming,
   type LowPassLfoSettings,
 } from "./lowPassLfo";
+import { RangeControl } from "./RangeControl";
 
 function formatTime(rate: number) {
   const seconds = 1 / rate;
@@ -35,9 +35,9 @@ export function LowPassLfoPanel({
   ) ?? LOW_PASS_LFO_TIMINGS[0];
 
   return (
-    <fieldset className="low-pass-lfo">
-      <legend>
-        LFO
+    <fieldset className="plain-fieldset low-pass-lfo">
+      <legend>LFO</legend>
+      <div className="low-pass-lfo__controls">
         <label className="low-pass-lfo__sync">
           <input
             checked={settings.syncEnabled}
@@ -51,24 +51,28 @@ export function LowPassLfoPanel({
           />
           Sync
         </label>
-      </legend>
-      <div className="low-pass-lfo__controls">
-        <DialControl
+        <RangeControl
           id="low-pass-lfo-depth"
           label="Depth"
-          onChange={(position) =>
+          max={1}
+          min={0}
+          onChange={(value) =>
             onChange({
               ...settings,
-              depth: clampLowPassLfo("depth", position),
+              depth: clampLowPassLfo("depth", value),
             })
           }
           output={`±${Math.round(depthHz)} Hz`}
-          position={settings.depth}
+          step={0.01}
+          value={settings.depth}
           valueText={`${Math.round(depthHz)} hertz above and below`}
         />
-        <DialControl
+        <RangeControl
+          disabled={settings.syncEnabled}
           id="low-pass-lfo-time"
           label="Time"
+          max={1}
+          min={0}
           onChange={(position) =>
             onChange({
               ...settings,
@@ -76,12 +80,16 @@ export function LowPassLfoPanel({
             })
           }
           output={formatTime(settings.rate)}
-          position={lowPassLfoTimeToPosition(settings.rate)}
+          step={0.01}
+          value={lowPassLfoTimeToPosition(settings.rate)}
           valueText={`${formatTime(settings.rate)} per cycle`}
         />
-        <DialControl
+        <RangeControl
+          disabled={!settings.syncEnabled}
           id="low-pass-lfo-division"
           label="Division"
+          max={1}
+          min={0}
           onChange={(position) =>
             onChange({
               ...settings,
@@ -89,8 +97,8 @@ export function LowPassLfoPanel({
             })
           }
           output={timing.label}
-          position={lowPassLfoTimingToPosition(settings.timing)}
           step={1 / (LOW_PASS_LFO_TIMINGS.length - 1)}
+          value={lowPassLfoTimingToPosition(settings.timing)}
           valueText={`${timing.label}, ${syncedRate.toFixed(2)} hertz at ${Math.round(settings.tempoBpm)} beats per minute`}
         />
       </div>

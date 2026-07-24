@@ -1,4 +1,5 @@
 interface RangeControlProps {
+  disabled?: boolean;
   id: string;
   label: string;
   max: number;
@@ -7,9 +8,11 @@ interface RangeControlProps {
   output: string;
   step: number | "any";
   value: number;
+  valueText?: string;
 }
 
 export function RangeControl({
+  disabled = false,
   id,
   label,
   max,
@@ -18,11 +21,14 @@ export function RangeControl({
   output,
   step,
   value,
+  valueText,
 }: RangeControlProps) {
   return (
     <label className="control-row" htmlFor={id}>
       <span>{label}</span>
       <input
+        aria-valuetext={valueText}
+        disabled={disabled}
         id={id}
         max={max}
         min={min}
