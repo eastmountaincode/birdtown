@@ -4,7 +4,7 @@ import {
   repeatRateToPosition,
 } from "../app/earthscope/repeatRateScale";
 import {
-  C3_REPEATS_PER_SECOND,
+  C4_REPEATS_PER_SECOND,
   CONTROL_SPECS,
 } from "../app/earthscope/controls";
 
@@ -18,9 +18,9 @@ describe("repeat-rate slider scale", () => {
   });
 
   test("gives slow real-time rates visible space", () => {
-    expect(repeatRateToPosition(0.0625)).toBeCloseTo(0.193);
-    expect(repeatRateToPosition(1)).toBeCloseTo(0.486);
-    expect(repeatRateToPosition(12.5)).toBeCloseTo(0.752);
+    expect(repeatRateToPosition(0.0625)).toBeCloseTo(0.18);
+    expect(repeatRateToPosition(1)).toBeCloseTo(0.453);
+    expect(repeatRateToPosition(12.5)).toBeCloseTo(0.701);
   });
 
   test("round-trips representative rates", () => {
@@ -33,7 +33,8 @@ describe("repeat-rate slider scale", () => {
       12.5,
       40,
       80,
-      C3_REPEATS_PER_SECOND,
+      130.8127827,
+      C4_REPEATS_PER_SECOND,
     ]) {
       expect(positionToRepeatRate(repeatRateToPosition(rate))).toBeCloseTo(
         rate,
