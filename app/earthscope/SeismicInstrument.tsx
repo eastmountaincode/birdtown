@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import {
-  EARTHSCOPE_STATION,
-  EARTHSCOPE_STATION_URL,
-} from "../lib/earthScopeConfig";
+import { EARTHSCOPE_STATION } from "../lib/earthScopeConfig";
 import { useEarthScope } from "../lib/useDataLink";
 import {
   clampControl,
@@ -14,7 +11,6 @@ import {
 import { AboutDialog } from "./AboutDialog";
 import { InstrumentControls } from "./InstrumentControls";
 import { MidiPanel } from "./MidiPanel";
-import type { MidiKnobMode } from "./midi";
 import { SettingsPanel } from "./SettingsPanel";
 import { useMidiControls } from "./useMidiControls";
 import { useSeismicAudio } from "./useSeismicAudio";
@@ -28,7 +24,6 @@ export function SeismicInstrument() {
   const [controls, setControls] = useState(DEFAULT_CONTROLS);
   const [hasHeldMidiKeys, setHasHeldMidiKeys] = useState(false);
   const hasHeldMidiKeysRef = useRef(false);
-  const [knobMode, setKnobMode] = useState<MidiKnobMode>("relative");
   const [latchEnabled, setLatchEnabled] = useState(true);
   const latchEnabledRef = useRef(true);
   const audio = useSeismicAudio({
@@ -50,7 +45,6 @@ export function SeismicInstrument() {
   );
   const midi = useMidiControls({
     controls,
-    knobMode,
     onHeldKeysChange: changeHeldKeys,
     setControls,
     setRepeatsPerSecond: audio.setRepeatsPerSecond,
@@ -81,17 +75,10 @@ export function SeismicInstrument() {
       <section className="page-shell">
         <div className="instrument-toolbar">
           <p className="instrument-status">
-            <a
-              className="instrument-source"
-              href={EARTHSCOPE_STATION_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              {EARTHSCOPE_STATION}
-            </a>
+            {EARTHSCOPE_STATION}
             {signal.latency === null
               ? null
-              : ` +++ ${signal.latency.toFixed(1)} s latency`}
+              : ` +++ latency: ${signal.latency.toFixed(1)}s`}
           </p>
           <div className="instrument-actions">
             <label className="output-meter">
@@ -134,11 +121,8 @@ export function SeismicInstrument() {
             connecting={midi.connecting}
             disconnect={midi.disconnect}
             inputs={midi.inputs}
-            knobMode={knobMode}
             onInputChange={midi.selectInput}
-            onKnobModeChange={setKnobMode}
             selectedInputKey={midi.selectedInputKey}
-            status={midi.status}
           />
           <SettingsPanel
             latchEnabled={latchEnabled}

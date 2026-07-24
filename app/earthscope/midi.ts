@@ -4,10 +4,6 @@ import {
   type VoiceControlKey,
   type VoiceControls,
 } from "./controls";
-import { positionToRepeatRate } from "./repeatRateScale";
-import { positionToSampleCount } from "./sampleCountScale";
-
-export type MidiKnobMode = "absolute" | "relative";
 
 export const MPK_MINI_KNOB_CONTROLS: Readonly<Record<number, VoiceControlKey>> = {
   24: "sampleCount",
@@ -321,38 +317,26 @@ export function applyMidiControl(
   controls: VoiceControls,
   controller: number,
   rawValue: number,
-  mode: MidiKnobMode,
 ) {
   const key = MPK_MINI_KNOB_CONTROLS[controller];
   if (!key) return controls;
 
   const spec = CONTROL_SPECS[key];
   const value = Math.max(0, Math.min(127, Math.round(rawValue)));
+  const delta = decodeRelativeMidiValue(value);
   let nextValue: number;
 
   if (key === "sampleCount") {
-    nextValue =
-      mode === "relative"
-        ? moveSampleCountRelatively(
-            controls.sampleCount,
-            decodeRelativeMidiValue(value),
-          ).sampleCount
-        : positionToSampleCount(value / 127);
+    nextValue = moveSampleCountRelatively(
+      controls.sampleCount,
+      delta,
+    ).sampleCount;
   } else if (key === "repeatsPerSecond") {
     nextValue =
-      mode === "relative"
-        ? controls.repeatsPerSecond *
-          Math.pow(
-            REPEAT_RATE_MIDI_RATIO,
-            decodeRelativeMidiValue(value),
-          )
-        : positionToRepeatRate(value / 127);
+      controls.repeatsPerSecond *
+      Math.pow(REPEAT_RATE_MIDI_RATIO, delta);
   } else {
-    const midiStep = spec.midiStep ?? 0;
-    nextValue =
-      mode === "relative"
-        ? controls[key] + decodeRelativeMidiValue(value) * midiStep
-        : spec.min + (value / 127) * (spec.max - spec.min);
+    nextValue = controls[key] + delta * (spec.midiStep ?? 0);
   }
   const clamped = clampControl(key, nextValue);
 

@@ -54,7 +54,6 @@ export function AboutDialog() {
           </a>{" "}
           in Birdtown, Kershaw, South Carolina.
         </p>
-        <p>Trillium 120PA · 100 Hz · raw digitizer counts</p>
         <p>
           miniSEED over{" "}
           <a href={EARTHSCOPE_DATALINK_URL} rel="noreferrer" target="_blank">

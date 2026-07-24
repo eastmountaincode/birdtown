@@ -6,8 +6,9 @@ import {
 
 describe("EarthScope audio rendering", () => {
   test("honors the browser audio-buffer sample-rate floor", () => {
-    expect(browserBufferRate(100)).toBe(3000);
-    expect(browserBufferRate(3200)).toBe(3200);
+    expect(browserBufferRate(100)).toBe(8000);
+    expect(browserBufferRate(3200)).toBe(8000);
+    expect(browserBufferRate(9600)).toBe(9600);
   });
 
   test("turns the selected loop into the requested repeats per second", () => {

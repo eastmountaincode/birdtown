@@ -14,13 +14,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## MPK mini
 
-Press **Connect MPK mini** once. The app prefers `MPK mini IV MIDI Port`, which
-is the MPK's normal performance-and-knob port. Use the **Input** menu to switch
-to the DAW, Software Control, Clarett, or another browser-visible MIDI input if
-that is where your current MPK preset is sending data.
-
-The status changes from `waiting for knob data` to `receiving knob data` only
-after a real mapped control message arrives. Connecting or disconnecting another
+Press **Connect MPK mini** once. The app treats the MPK mini IV MIDI and DAW
+ports as one controller and listens to both. Use the **Input** menu to select a
+different browser-visible MIDI input when needed. Connecting or disconnecting a
 CoreMIDI device causes the selected input to be reopened automatically.
 
 The knob mapping remains fixed—there is no knob-learning step:
@@ -32,8 +28,7 @@ The knob mapping remains fixed—there is no knob-learning step:
 | 26 | Low-pass |
 | 27 | Resonance |
 
-Relative mode is the default. Choose Absolute only if the MPK program is set to
-send absolute knob values.
+The MPK program must send relative knob values.
 
 ## Code layout
 

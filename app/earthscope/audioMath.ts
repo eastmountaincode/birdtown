@@ -1,5 +1,5 @@
 export function browserBufferRate(sourceRate: number) {
-  return Math.max(3000, sourceRate);
+  return Math.max(8000, sourceRate);
 }
 
 export function playbackRateForRepeats(

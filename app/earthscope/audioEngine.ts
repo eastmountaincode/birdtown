@@ -18,6 +18,21 @@ export interface SeismicAudioEngine {
   stop: () => Promise<void>;
 }
 
+type NavigatorWithAudioSession = Navigator & {
+  audioSession?: {
+    type: string;
+  };
+};
+
+function requestPlaybackAudioSession() {
+  try {
+    const audioSession = (navigator as NavigatorWithAudioSession).audioSession;
+    if (audioSession) audioSession.type = "playback";
+  } catch {
+    // AudioSession is experimental. AudioContext.resume() remains the fallback.
+  }
+}
+
 function makeLoopBuffer(
   context: AudioContext,
   values: number[],
@@ -51,8 +66,18 @@ export async function startSeismicAudio(
   getControls: () => VoiceControls,
   getGateOpen: () => boolean = () => true,
 ): Promise<SeismicAudioEngine> {
+  requestPlaybackAudioSession();
   const context = new AudioContext({ latencyHint: "interactive" });
-  await context.resume();
+  try {
+    await context.resume();
+  } catch {
+    await context.close();
+    throw new Error("Sound is blocked. Tap Play again.");
+  }
+  if (context.state !== "running") {
+    await context.close();
+    throw new Error("Sound is blocked. Tap Play again.");
+  }
 
   const controls = getControls();
   const current = getSignal();

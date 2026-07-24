@@ -1,4 +1,4 @@
-import type { MidiInputOption, MidiKnobMode } from "./midi";
+import type { MidiInputOption } from "./midi";
 
 export function MidiPanel({
   connect,
@@ -6,22 +6,16 @@ export function MidiPanel({
   connecting,
   disconnect,
   inputs,
-  knobMode,
   onInputChange,
-  onKnobModeChange,
   selectedInputKey,
-  status,
 }: {
   connect: () => Promise<void>;
   connected: boolean;
   connecting: boolean;
   disconnect: () => void;
   inputs: MidiInputOption[];
-  knobMode: MidiKnobMode;
   onInputChange: (inputKey: string) => Promise<void>;
-  onKnobModeChange: (mode: MidiKnobMode) => void;
   selectedInputKey: string | null;
-  status: string;
 }) {
   return (
     <fieldset className="plain-fieldset">
@@ -56,21 +50,7 @@ export function MidiPanel({
             </select>
           </>
         ) : null}
-        <label htmlFor="midi-knob-mode">Knob mode</label>
-        <select
-          id="midi-knob-mode"
-          onChange={(event) =>
-            onKnobModeChange(event.target.value as MidiKnobMode)
-          }
-          value={knobMode}
-        >
-          <option value="relative">Relative</option>
-          <option value="absolute">Absolute</option>
-        </select>
       </div>
-      <p aria-live="polite" className="midi-status">
-        {status}
-      </p>
     </fieldset>
   );
 }

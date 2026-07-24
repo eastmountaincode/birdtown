@@ -25,6 +25,7 @@ export function useSeismicAudio({
   const rateRef = useRef(sampleRate);
   const runRef = useRef(0);
   const samplesRef = useRef(samples);
+  const startingRef = useRef(false);
 
   useEffect(() => {
     controlsRef.current = controls;
@@ -46,6 +47,7 @@ export function useSeismicAudio({
 
   const stop = useCallback(async () => {
     runRef.current += 1;
+    startingRef.current = false;
     const audio = audioRef.current;
     audioRef.current = null;
     window.clearInterval(meterTimerRef.current);
@@ -69,11 +71,11 @@ export function useSeismicAudio({
       await stop();
       return;
     }
-    if (!canPlay) return;
+    if (!canPlay || startingRef.current) return;
 
     const run = ++runRef.current;
+    startingRef.current = true;
     setError(null);
-    setPlaying(true);
 
     try {
       const audio = await startSeismicAudio(
@@ -87,6 +89,7 @@ export function useSeismicAudio({
       }
       audioRef.current = audio;
       audio.setGateOpen(gateOpenRef.current);
+      setPlaying(true);
       meterTimerRef.current = window.setInterval(() => {
         const decibels = 20 * Math.log10(Math.max(audio.measure(), 0.000001));
         setLevel(Math.max(0, Math.min(1, (decibels + 60) / 54)));
@@ -98,12 +101,15 @@ export function useSeismicAudio({
           startError instanceof Error ? startError.message : "Audio could not start",
         );
       }
+    } finally {
+      if (run === runRef.current) startingRef.current = false;
     }
   }, [canPlay, playing, stop]);
 
   useEffect(
     () => () => {
       runRef.current += 1;
+      startingRef.current = false;
       window.clearInterval(meterTimerRef.current);
       void audioRef.current?.stop();
     },

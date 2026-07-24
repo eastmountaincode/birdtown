@@ -24,8 +24,6 @@ import {
   resolveMidiInputSelection,
   updateHeldNotes,
 } from "../app/earthscope/midi";
-import { positionToRepeatRate } from "../app/earthscope/repeatRateScale";
-import { positionToSampleCount } from "../app/earthscope/sampleCountScale";
 import { voiceGateOpen } from "../app/earthscope/voiceGate";
 
 const MIDI_PORT = {
@@ -264,18 +262,6 @@ describe("MPK mini controls", () => {
     expect(voiceGateOpen(true, latched.heldNotes.length > 0)).toBe(true);
   });
 
-  test("absolute values remain monotonic and reach both endpoints", () => {
-    const values = [0, 1, 63, 64, 127].map(
-      (rawValue) =>
-        applyMidiControl(DEFAULT_CONTROLS, 24, rawValue, "absolute")
-          .sampleCount,
-    );
-
-    expect(values).toEqual([...values].sort((left, right) => left - right));
-    expect(values[0]).toBe(CONTROL_SPECS.sampleCount.min);
-    expect(values.at(-1)).toBe(CONTROL_SPECS.sampleCount.max);
-  });
-
   test("relative sample-count movement accumulates fine detail at the bottom", () => {
     let target = CONTROL_SPECS.sampleCount.min;
     const values: number[] = [];
@@ -318,23 +304,6 @@ describe("MPK mini controls", () => {
     expect(moveSampleCountRelatively(floor.target, 1).target).toBeCloseTo(4.1);
   });
 
-  test("absolute sample-count movement follows the logarithmic slider", () => {
-    const middle =
-      applyMidiControl(DEFAULT_CONTROLS, 24, 64, "absolute").sampleCount;
-
-    expect(middle).toBeGreaterThan(200);
-    expect(middle).toBeLessThan(250);
-  });
-
-  test("every absolute sample-count value shares the slider mapping", () => {
-    for (let rawValue = 0; rawValue <= 127; rawValue += 1) {
-      expect(
-        applyMidiControl(DEFAULT_CONTROLS, 24, rawValue, "absolute")
-          .sampleCount,
-      ).toBe(positionToSampleCount(rawValue / 127));
-    }
-  });
-
   test("relative sample-count deltas preserve their fractional motion", () => {
     const combined = moveSampleCountRelatively(72, 5);
     let repeatedTarget = 72;
@@ -356,9 +325,9 @@ describe("MPK mini controls", () => {
     const high: VoiceControls = { ...DEFAULT_CONTROLS, repeatsPerSecond: 10 };
 
     const nextLow =
-      applyMidiControl(low, 25, 1, "relative").repeatsPerSecond;
+      applyMidiControl(low, 25, 1).repeatsPerSecond;
     const nextHigh =
-      applyMidiControl(high, 25, 1, "relative").repeatsPerSecond;
+      applyMidiControl(high, 25, 1).repeatsPerSecond;
 
     expect(nextLow / low.repeatsPerSecond).toBeCloseTo(
       nextHigh / high.repeatsPerSecond,
@@ -369,37 +338,16 @@ describe("MPK mini controls", () => {
     expect(decodeRelativeMidiValue(64)).toBe(0);
   });
 
-  test("absolute repeat-rate movement follows the logarithmic slider", () => {
-    const minimum =
-      applyMidiControl(DEFAULT_CONTROLS, 25, 0, "absolute")
-        .repeatsPerSecond;
-    const middle =
-      applyMidiControl(DEFAULT_CONTROLS, 25, 64, "absolute")
-        .repeatsPerSecond;
-    const maximum =
-      applyMidiControl(DEFAULT_CONTROLS, 25, 127, "absolute")
-        .repeatsPerSecond;
-
-    expect(minimum).toBe(CONTROL_SPECS.repeatsPerSecond.min);
-    expect(middle).toBeCloseTo(positionToRepeatRate(64 / 127));
-    expect(maximum).toBeCloseTo(CONTROL_SPECS.repeatsPerSecond.max);
-  });
-
   test("relative resonance steps stay uniform after quantization", () => {
-    const first = applyMidiControl(
-      DEFAULT_CONTROLS,
-      27,
-      1,
-      "relative",
-    );
-    const second = applyMidiControl(first, 27, 1, "relative");
+    const first = applyMidiControl(DEFAULT_CONTROLS, 27, 1);
+    const second = applyMidiControl(first, 27, 1);
 
     expect(first.resonance - DEFAULT_CONTROLS.resonance).toBeCloseTo(0.2);
     expect(second.resonance - first.resonance).toBeCloseTo(0.2);
   });
 
   test("ignores unrelated controllers", () => {
-    expect(applyMidiControl(DEFAULT_CONTROLS, 74, 127, "relative")).toBe(
+    expect(applyMidiControl(DEFAULT_CONTROLS, 74, 127)).toBe(
       DEFAULT_CONTROLS,
     );
   });

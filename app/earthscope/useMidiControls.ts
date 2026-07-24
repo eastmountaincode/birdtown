@@ -13,7 +13,6 @@ import {
   applyMidiControl,
   decodeRelativeMidiValue,
   listMidiInputSelections,
-  midiInputOption,
   midiInputTopology,
   moveSampleCountRelatively,
   MPK_MINI_KNOB_CONTROLS,
@@ -24,7 +23,6 @@ import {
   resolveMidiInputSelection,
   type MidiInputOption,
   type MidiInputSelection,
-  type MidiKnobMode,
 } from "./midi";
 
 interface MidiConnectionState {
@@ -32,7 +30,6 @@ interface MidiConnectionState {
   connecting: boolean;
   inputs: MidiInputOption[];
   selectedInputKey: string | null;
-  status: string;
 }
 
 interface HeldMidiNote {
@@ -40,14 +37,11 @@ interface HeldMidiNote {
   note: number;
 }
 
-type InputActivity = "mapped" | "unmapped";
-
 const DISCONNECTED: MidiConnectionState = {
   connected: false,
   connecting: false,
   inputs: [],
   selectedInputKey: null,
-  status: "MIDI disconnected",
 };
 
 function isMpkDawPort(input: MIDIInput) {
@@ -55,21 +49,13 @@ function isMpkDawPort(input: MIDIInput) {
   return name.includes("mpk mini") && name.includes("daw port");
 }
 
-function expectedInputCount(selection: MidiInputSelection<MIDIInput>) {
-  return selection.key.startsWith("mpk-mini:")
-    ? 2
-    : selection.inputs.length;
-}
-
 export function useMidiControls({
   controls,
-  knobMode,
   onHeldKeysChange,
   setControls,
   setRepeatsPerSecond,
 }: {
   controls: VoiceControls;
-  knobMode: MidiKnobMode;
   onHeldKeysChange: (hasHeldKeys: boolean) => void;
   setControls: Dispatch<SetStateAction<VoiceControls>>;
   setRepeatsPerSecond: (value: number) => void;
@@ -79,19 +65,15 @@ export function useMidiControls({
   const accessGenerationRef = useRef(0);
   const accessRef = useRef<MIDIAccess | null>(null);
   const activeInputsRef = useRef(new Map<string, MIDIInput>());
-  const activityByInputRef = useRef(new Map<string, InputActivity>());
   const closingByInputRef = useRef(
     new WeakMap<MIDIInput, Promise<void>>(),
   );
   const controlsRef = useRef(controls);
   const desiredInputsRef = useRef(new Map<string, MIDIInput>());
-  const desiredInputIdsRef = useRef(new Set<string>());
   const heldNotesRef = useRef<HeldMidiNote[]>([]);
-  const knobModeRef = useRef(knobMode);
   const hasHeldKeysRef = useRef(false);
   const onHeldKeysChangeRef = useRef(onHeldKeysChange);
   const pendingInputsRef = useRef(new Map<string, MIDIInput>());
-  const preferredNameRef = useRef<string | null>(null);
   const preferredSelectionKeyRef = useRef<string | null>(null);
   const sampleCountTargetRef = useRef<number | null>(null);
   const selectionGenerationRef = useRef(0);
@@ -99,10 +81,6 @@ export function useMidiControls({
   const topologyDirtyRef = useRef(false);
   const topologyRef = useRef("");
   const topologyTimerRef = useRef(0);
-
-  useEffect(() => {
-    knobModeRef.current = knobMode;
-  }, [knobMode]);
 
   useEffect(() => {
     onHeldKeysChangeRef.current = onHeldKeysChange;
@@ -182,8 +160,6 @@ export function useMidiControls({
   const detachInputs = useCallback(() => {
     selectionGenerationRef.current += 1;
     desiredInputsRef.current.clear();
-    desiredInputIdsRef.current.clear();
-    activityByInputRef.current.clear();
     setHeldNotes([]);
     sampleCountTargetRef.current = null;
 
@@ -213,50 +189,6 @@ export function useMidiControls({
     [selectRepeatRate, setHeldNotes],
   );
 
-  const activeInputCount = useCallback(() => {
-    let count = 0;
-    for (const [inputId] of activeInputsRef.current) {
-      if (desiredInputIdsRef.current.has(inputId)) count += 1;
-    }
-    return count;
-  }, []);
-
-  const activitySuffix = useCallback(() => {
-    const expected = preferredSelectionKeyRef.current?.startsWith("mpk-mini:")
-      ? 2
-      : desiredInputIdsRef.current.size;
-    const active = activeInputCount();
-    return active < expected ? ` (${active} of ${expected} ports)` : "";
-  }, [activeInputCount]);
-
-  const markInputActivity = useCallback(
-    (
-      input: MIDIInput,
-      activity: InputActivity,
-      unmappedController?: number,
-    ) => {
-      activityByInputRef.current.set(input.id, activity);
-      const name = preferredNameRef.current ?? midiInputOption(input).name;
-      if (activity === "mapped") {
-        setConnection((current) => ({
-          ...current,
-          status: `${name} · receiving MIDI data${activitySuffix()}`,
-        }));
-        return;
-      }
-
-      const hasMappedActivity = [...activeInputsRef.current.keys()].some(
-        (inputId) => activityByInputRef.current.get(inputId) === "mapped",
-      );
-      if (hasMappedActivity) return;
-      setConnection((current) => ({
-        ...current,
-        status: `${name} · CC${unmappedController} not mapped`,
-      }));
-    },
-    [activitySuffix],
-  );
-
   const handleMidiMessage = useCallback(
     (input: MIDIInput, event: MIDIMessageEvent) => {
       if (
@@ -274,15 +206,7 @@ export function useMidiControls({
       ) {
         if (noteMessage.type === "on") {
           const selectedRate = playableRepeatRateForMidiNote(noteMessage.note);
-          if (selectedRate === null) {
-            const name =
-              preferredNameRef.current ?? midiInputOption(input).name;
-            setConnection((current) => ({
-              ...current,
-              status: `${name} · key outside pitch range`,
-            }));
-            return;
-          }
+          if (selectedRate === null) return;
 
           const nextHeldNotes = [
             ...heldNotesRef.current.filter(
@@ -312,7 +236,6 @@ export function useMidiControls({
           setHeldNotes(remaining);
         }
 
-        markInputActivity(input, "mapped");
         return;
       }
 
@@ -324,10 +247,7 @@ export function useMidiControls({
       );
 
       if (mapped) {
-        if (
-          message.controller === 24 &&
-          knobModeRef.current === "relative"
-        ) {
+        if (message.controller === 24) {
           const current = controlsRef.current;
           const storedTarget = sampleCountTargetRef.current;
           const target =
@@ -349,15 +269,11 @@ export function useMidiControls({
             setControls(next);
           }
         } else {
-          if (message.controller === 24) {
-            sampleCountTargetRef.current = null;
-          }
           const current = controlsRef.current;
           const next = applyMidiControl(
             current,
             message.controller,
             message.rawValue,
-            knobModeRef.current,
           );
           if (next !== current) {
             controlsRef.current = next;
@@ -365,51 +281,8 @@ export function useMidiControls({
           }
         }
       }
-
-      markInputActivity(
-        input,
-        mapped ? "mapped" : "unmapped",
-        message.controller,
-      );
     },
-    [markInputActivity, selectRepeatRate, setControls, setHeldNotes],
-  );
-
-  const publishSelectionStatus = useCallback(
-    (
-      selection: MidiInputSelection<MIDIInput>,
-      openErrors: string[] = [],
-    ) => {
-      const active = activeInputCount();
-      const expected = expectedInputCount(selection);
-      const hasMappedActivity = [...activeInputsRef.current.keys()].some(
-        (inputId) => activityByInputRef.current.get(inputId) === "mapped",
-      );
-      let status: string;
-
-      if (hasMappedActivity) {
-        const suffix =
-          active < expected ? ` (${active} of ${expected} ports)` : "";
-        status = `${selection.name} · receiving MIDI data${suffix}`;
-      } else if (active === 0) {
-        status =
-          openErrors[0] ??
-          `${selection.name} could not open`;
-      } else if (active < expected) {
-        status = `${selection.name} · ${active} of ${expected} ports ready`;
-      } else {
-        status = `${selection.name} · waiting for MIDI data`;
-      }
-
-      setConnection((current) => ({
-        ...current,
-        connected: true,
-        connecting: false,
-        selectedInputKey: selection.key,
-        status,
-      }));
-    },
-    [activeInputCount],
+    [selectRepeatRate, setControls, setHeldNotes],
   );
 
   const reconcileInputSelection = useCallback(
@@ -423,13 +296,11 @@ export function useMidiControls({
         ? detachInputs()
         : Promise.resolve([]);
       preferredSelectionKeyRef.current = selection.key;
-      preferredNameRef.current = selection.name;
       const selectionGeneration = selectionGenerationRef.current;
       const desiredInputs = new Map(
         selection.inputs.map((input) => [input.id, input]),
       );
       desiredInputsRef.current = desiredInputs;
-      desiredInputIdsRef.current = new Set(desiredInputs.keys());
 
       const staleInputs = new Set<MIDIInput>();
       for (const [inputId, input] of [
@@ -445,7 +316,6 @@ export function useMidiControls({
         if (pendingInputsRef.current.get(inputId) === input) {
           pendingInputsRef.current.delete(inputId);
         }
-        activityByInputRef.current.delete(inputId);
       }
 
       const inputsToOpen = selection.inputs.filter((input) => {
@@ -454,19 +324,12 @@ export function useMidiControls({
         pendingInputsRef.current.set(input.id, input);
         return true;
       });
-      const desiredPendingCount = selection.inputs.filter(
-        (input) => pendingInputsRef.current.get(input.id) === input,
-      ).length;
 
       setConnection((current) => ({
         ...current,
         connected: true,
         connecting: false,
         selectedInputKey: selection.key,
-        status:
-          inputsToOpen.length > 0 || desiredPendingCount > 0
-            ? `Opening ${selection.name}...`
-            : current.status,
       }));
 
       const staleCloses = Promise.all(
@@ -482,7 +345,7 @@ export function useMidiControls({
         access.inputs.get(input.id) === input &&
         pendingInputsRef.current.get(input.id) === input;
 
-      const results = await Promise.all(
+      await Promise.all(
         inputsToOpen.map(async (input) => {
           try {
             await previousClose;
@@ -504,55 +367,12 @@ export function useMidiControls({
             activeInputsRef.current.set(input.id, input);
             input.onmidimessage = (event) =>
               handleMidiMessage(input, event);
-            return null;
-          } catch (error) {
+          } catch {
             if (pendingInputsRef.current.get(input.id) === input) {
               pendingInputsRef.current.delete(input.id);
             }
-            if (!selectionStillCurrent()) return null;
-            const inputName = midiInputOption(input).name;
-            return {
-              input,
-              message:
-                error instanceof Error
-                  ? `${inputName} · ${error.message}`
-                  : `${inputName} could not open`,
-            };
           }
         }),
-      );
-
-      if (!selectionStillCurrent()) return;
-      const currentSelection = resolveMidiInputSelection(
-        access.inputs.values(),
-        preferredSelectionKeyRef.current,
-      );
-      if (!currentSelection) return;
-      const currentSignature = currentSelection.inputs
-        .map((input) => input.id)
-        .sort()
-        .join("|");
-      if (
-        currentSignature !==
-          [...desiredInputIdsRef.current].sort().join("|") ||
-        currentSelection.inputs.some(
-          (input) => desiredInputsRef.current.get(input.id) !== input,
-        )
-      ) {
-        return;
-      }
-      const hasOtherPendingInput = currentSelection.inputs.some(
-        (input) => pendingInputsRef.current.get(input.id) === input,
-      );
-      if (hasOtherPendingInput) return;
-      publishSelectionStatus(
-        currentSelection,
-        results.flatMap((result) =>
-          result !== null &&
-          desiredInputsRef.current.get(result.input.id) === result.input
-            ? [result.message]
-            : [],
-        ),
       );
     },
     [
@@ -560,7 +380,6 @@ export function useMidiControls({
       detachInputs,
       enqueuePortOperation,
       handleMidiMessage,
-      publishSelectionStatus,
       removeHeldNotesForInput,
     ],
   );
@@ -593,18 +412,12 @@ export function useMidiControls({
     }
 
     void detachInputs();
-    const preferredName = preferredNameRef.current;
     setConnection((current) => ({
       ...current,
       connected: true,
       connecting: false,
       inputs: options,
       selectedInputKey: null,
-      status: preferredName
-        ? `Waiting for ${preferredName}`
-        : options.length > 0
-          ? "Choose a MIDI input"
-          : "No MIDI inputs found",
     }));
   }, [detachInputs, reconcileInputSelection]);
 
@@ -626,10 +439,7 @@ export function useMidiControls({
 
   const connect = useCallback(async () => {
     if (!("requestMIDIAccess" in navigator)) {
-      setConnection({
-        ...DISCONNECTED,
-        status: "Web MIDI unavailable",
-      });
+      setConnection(DISCONNECTED);
       return;
     }
 
@@ -638,7 +448,6 @@ export function useMidiControls({
     setConnection({
       ...DISCONNECTED,
       connecting: true,
-      status: "Connecting MIDI...",
     });
 
     try {
@@ -664,13 +473,10 @@ export function useMidiControls({
         }, 50);
       };
       await rescanInputs();
-    } catch (error) {
+    } catch {
       if (accessGeneration !== accessGenerationRef.current) return;
       release(false);
-      setConnection({
-        ...DISCONNECTED,
-        status: error instanceof Error ? error.message : "MIDI connection failed",
-      });
+      setConnection(DISCONNECTED);
     }
   }, [release, rescanInputs]);
 
@@ -682,13 +488,7 @@ export function useMidiControls({
         access.inputs.values(),
         inputKey,
       );
-      if (!selection) {
-        setConnection((current) => ({
-          ...current,
-          status: "MIDI input unavailable",
-        }));
-        return;
-      }
+      if (!selection) return;
       await reconcileInputSelection(selection);
     },
     [reconcileInputSelection],

@@ -155,17 +155,6 @@ legend {
   margin: 0;
 }
 
-.instrument-source {
-  border-bottom: 1px solid transparent;
-  color: inherit;
-  text-decoration: none;
-}
-
-.instrument-source:hover,
-.instrument-source:focus-visible {
-  border-bottom-color: currentColor;
-}
-
 .instrument-error {
   margin: 0 0 0.75rem;
   color: #b00000;
@@ -230,11 +219,6 @@ legend {
 
 .midi-controls label {
   margin-left: 0.5rem;
-}
-
-.midi-status {
-  margin: 0.75rem 0 0;
-  font-size: 0.9rem;
 }
 
 .settings-toggle {
