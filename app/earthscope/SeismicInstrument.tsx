@@ -14,6 +14,7 @@ import {
   DEFAULT_LOW_PASS_LFO,
   type LowPassLfoSettings,
 } from "./lowPassLfo";
+import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { useMidiControls } from "./useMidiControls";
@@ -122,10 +123,13 @@ export function SeismicInstrument() {
           <InstrumentControls
             availableSamples={signal.samples.length}
             controls={controls}
-            lowPassLfo={lowPassLfo}
             onChange={changeControl}
-            onLowPassLfoChange={changeLowPassLfo}
             sampleRate={signal.sampleRate}
+          />
+          <LowPassLfoPanel
+            cutoff={controls.cutoff}
+            onChange={changeLowPassLfo}
+            settings={lowPassLfo}
           />
           <MidiPanel
             connect={midi.connect}

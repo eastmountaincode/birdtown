@@ -187,7 +187,23 @@ legend {
 
 .instrument-panels {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 1rem;
+}
+
+.instrument-panels > .plain-fieldset {
+  grid-column: 1 / -1;
+}
+
+.instrument-panels > .controls-panel {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.instrument-panels > .low-pass-lfo {
+  grid-row: 1;
+  grid-column: 2;
 }
 
 .plain-fieldset {
@@ -200,12 +216,7 @@ legend {
 
 .control-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.75rem 1rem;
-}
-
-.control-list > .control-row {
-  grid-column: 1;
+  gap: 0.75rem;
 }
 
 .control-row {
@@ -227,8 +238,6 @@ legend {
 }
 
 .low-pass-lfo {
-  grid-row: 3;
-  grid-column: 2;
   min-width: 0;
   margin: 0;
   border: 1px solid #000000;
@@ -450,8 +459,15 @@ legend {
     width: fit-content;
   }
 
-  .control-list {
+  .instrument-panels {
     grid-template-columns: 1fr;
+  }
+
+  .instrument-panels > .plain-fieldset,
+  .instrument-panels > .controls-panel,
+  .instrument-panels > .low-pass-lfo {
+    grid-row: auto;
+    grid-column: 1;
   }
 
   .control-row {
@@ -461,11 +477,6 @@ legend {
 
   .control-row output {
     text-align: left;
-  }
-
-  .low-pass-lfo {
-    grid-row: auto;
-    grid-column: 1;
   }
 
   .midi-controls label {

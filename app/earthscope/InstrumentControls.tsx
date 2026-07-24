@@ -5,8 +5,6 @@ import {
   type VoiceControlKey,
   type VoiceControls,
 } from "./controls";
-import { LowPassLfoPanel } from "./LowPassLfoPanel";
-import type { LowPassLfoSettings } from "./lowPassLfo";
 import { RangeControl } from "./RangeControl";
 import { RepeatRateControl } from "./RepeatRateControl";
 import { SampleCountControl } from "./SampleCountControl";
@@ -14,16 +12,12 @@ import { SampleCountControl } from "./SampleCountControl";
 export function InstrumentControls({
   availableSamples,
   controls,
-  lowPassLfo,
   onChange,
-  onLowPassLfoChange,
   sampleRate,
 }: {
   availableSamples: number;
   controls: VoiceControls;
-  lowPassLfo: LowPassLfoSettings;
   onChange: (key: VoiceControlKey, value: number) => void;
-  onLowPassLfoChange: (settings: LowPassLfoSettings) => void;
   sampleRate: number;
 }) {
   const rate =
@@ -38,7 +32,7 @@ export function InstrumentControls({
       : `${samplesInUse} samples (${(samplesInUse / rate).toFixed(2)} s)`;
 
   return (
-    <fieldset className="plain-fieldset">
+    <fieldset className="plain-fieldset controls-panel">
       <legend>Controls</legend>
       <div className="control-list">
         <SampleCountControl
@@ -69,11 +63,6 @@ export function InstrumentControls({
           />
           <output htmlFor="cutoff">{controls.cutoff} Hz</output>
         </div>
-        <LowPassLfoPanel
-          cutoff={controls.cutoff}
-          onChange={onLowPassLfoChange}
-          settings={lowPassLfo}
-        />
         <RangeControl
           id="resonance"
           label="Resonance"
