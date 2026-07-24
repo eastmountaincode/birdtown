@@ -79,6 +79,10 @@ input[type="range"] {
   padding: 0;
 }
 
+input[type="checkbox"] {
+  cursor: pointer;
+}
+
 fieldset {
   min-inline-size: 0;
 }
@@ -225,6 +229,7 @@ legend {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  cursor: pointer;
 }
 
 .settings-toggle input {
