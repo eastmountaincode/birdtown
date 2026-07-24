@@ -5,9 +5,9 @@ import {
   type VoiceControls,
 } from "./controls";
 import {
-  clampLowPassLfo,
   DEFAULT_LOW_PASS_LFO,
   lowPassLfoDepthHz,
+  lowPassLfoRateHz,
   type LowPassLfoSettings,
 } from "./lowPassLfo";
 import { prepareLoop, recent } from "./signal";
@@ -115,7 +115,7 @@ export async function startSeismicAudio(
   filter.frequency.value = controls.cutoff;
   filter.Q.value = controls.resonance;
   filterLfo.type = "sine";
-  filterLfo.frequency.value = clampLowPassLfo("rate", lowPassLfo.rate);
+  filterLfo.frequency.value = lowPassLfoRateHz(lowPassLfo);
   filterLfoDepth.gain.value = lowPassLfoDepthHz(
     controls.cutoff,
     lowPassLfo.depth,
@@ -225,7 +225,7 @@ export async function startSeismicAudio(
     filter.frequency.setTargetAtTime(nextControls.cutoff, now, 0.01);
     filter.Q.setTargetAtTime(nextControls.resonance, now, 0.01);
     filterLfo.frequency.setTargetAtTime(
-      clampLowPassLfo("rate", nextLowPassLfo.rate),
+      lowPassLfoRateHz(nextLowPassLfo),
       now,
       0.01,
     );

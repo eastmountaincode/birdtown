@@ -5,6 +5,8 @@ import {
   type VoiceControlKey,
   type VoiceControls,
 } from "./controls";
+import { LowPassLfoPanel } from "./LowPassLfoPanel";
+import type { LowPassLfoSettings } from "./lowPassLfo";
 import { RangeControl } from "./RangeControl";
 import { RepeatRateControl } from "./RepeatRateControl";
 import { SampleCountControl } from "./SampleCountControl";
@@ -12,12 +14,16 @@ import { SampleCountControl } from "./SampleCountControl";
 export function InstrumentControls({
   availableSamples,
   controls,
+  lowPassLfo,
   onChange,
+  onLowPassLfoChange,
   sampleRate,
 }: {
   availableSamples: number;
   controls: VoiceControls;
+  lowPassLfo: LowPassLfoSettings;
   onChange: (key: VoiceControlKey, value: number) => void;
+  onLowPassLfoChange: (settings: LowPassLfoSettings) => void;
   sampleRate: number;
 }) {
   const rate =
@@ -48,16 +54,26 @@ export function InstrumentControls({
           }
           value={controls.repeatsPerSecond}
         />
-        <RangeControl
-          id="cutoff"
-          label="Low-pass"
-          max={CONTROL_SPECS.cutoff.max}
-          min={CONTROL_SPECS.cutoff.min}
-          onChange={(value) => onChange("cutoff", value)}
-          output={`${controls.cutoff} Hz`}
-          step={CONTROL_SPECS.cutoff.step}
-          value={controls.cutoff}
-        />
+        <div className="control-row low-pass-row">
+          <label htmlFor="cutoff">Low-pass</label>
+          <input
+            id="cutoff"
+            max={CONTROL_SPECS.cutoff.max}
+            min={CONTROL_SPECS.cutoff.min}
+            onChange={(event) =>
+              onChange("cutoff", Number(event.target.value))
+            }
+            step={CONTROL_SPECS.cutoff.step}
+            type="range"
+            value={controls.cutoff}
+          />
+          <output htmlFor="cutoff">{controls.cutoff} Hz</output>
+          <LowPassLfoPanel
+            cutoff={controls.cutoff}
+            onChange={onLowPassLfoChange}
+            settings={lowPassLfo}
+          />
+        </div>
         <RangeControl
           id="resonance"
           label="Resonance"

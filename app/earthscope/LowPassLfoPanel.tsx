@@ -1,8 +1,14 @@
+import { DialControl } from "./DialControl";
 import {
+  clampLowPassLfo,
+  isLowPassLfoTiming,
   lowPassLfoDepthHz,
+  lowPassLfoRateHz,
   lowPassLfoRateToPosition,
+  lowPassLfoTempoToPosition,
+  LOW_PASS_LFO_TIMINGS,
   positionToLowPassLfoRate,
-  type LowPassLfoKey,
+  positionToLowPassLfoTempo,
   type LowPassLfoSettings,
 } from "./lowPassLfo";
 
@@ -16,53 +22,78 @@ export function LowPassLfoPanel({
   settings,
 }: {
   cutoff: number;
-  onChange: (key: LowPassLfoKey, value: number) => void;
+  onChange: (settings: LowPassLfoSettings) => void;
   settings: LowPassLfoSettings;
 }) {
   const depthHz = lowPassLfoDepthHz(cutoff, settings.depth);
+  const synced = settings.timing !== "free";
+  const effectiveRate = lowPassLfoRateHz(settings);
+  const ratePosition = synced
+    ? lowPassLfoTempoToPosition(settings.tempoBpm)
+    : lowPassLfoRateToPosition(settings.rate);
+  const rateOutput = synced
+    ? `${Math.round(settings.tempoBpm)} bpm`
+    : `${formatRate(settings.rate)} Hz`;
 
   return (
-    <fieldset className="plain-fieldset lfo-panel">
-      <legend>Low-pass LFO</legend>
-      <div className="lfo-controls">
-        <label className="lfo-control" htmlFor="low-pass-lfo-depth">
-          <span>Depth</span>
-          <input
-            aria-valuetext={`${Math.round(depthHz)} hertz above and below`}
-            id="low-pass-lfo-depth"
-            max="1"
-            min="0"
-            onChange={(event) =>
-              onChange("depth", Number(event.target.value))
-            }
-            step="0.01"
-            type="range"
-            value={settings.depth}
-          />
-          <output htmlFor="low-pass-lfo-depth">
-            ±{Math.round(depthHz)} Hz
-          </output>
-        </label>
-        <label className="lfo-control" htmlFor="low-pass-lfo-rate">
-          <span>Rate</span>
-          <input
-            aria-valuetext={`${formatRate(settings.rate)} hertz`}
-            id="low-pass-lfo-rate"
-            max="1"
-            min="0"
-            onChange={(event) =>
-              onChange(
-                "rate",
-                positionToLowPassLfoRate(Number(event.target.value)),
-              )
-            }
-            step="any"
-            type="range"
-            value={lowPassLfoRateToPosition(settings.rate)}
-          />
-          <output htmlFor="low-pass-lfo-rate">
-            {formatRate(settings.rate)} Hz
-          </output>
+    <fieldset className="low-pass-lfo">
+      <legend>LFO</legend>
+      <div className="low-pass-lfo__controls">
+        <DialControl
+          id="low-pass-lfo-depth"
+          label="Depth"
+          onChange={(position) =>
+            onChange({
+              ...settings,
+              depth: clampLowPassLfo("depth", position),
+            })
+          }
+          output={`±${Math.round(depthHz)} Hz`}
+          position={settings.depth}
+          valueText={`${Math.round(depthHz)} hertz above and below`}
+        />
+        <DialControl
+          id="low-pass-lfo-rate"
+          label={synced ? "BPM" : "Rate"}
+          onChange={(position) =>
+            onChange(
+              synced
+                ? {
+                    ...settings,
+                    tempoBpm: positionToLowPassLfoTempo(position),
+                  }
+                : {
+                    ...settings,
+                    rate: positionToLowPassLfoRate(position),
+                  },
+            )
+          }
+          output={rateOutput}
+          position={ratePosition}
+          valueText={
+            synced
+              ? `${Math.round(settings.tempoBpm)} beats per minute, ${formatRate(effectiveRate)} hertz`
+              : `${formatRate(settings.rate)} hertz`
+          }
+        />
+        <label className="low-pass-lfo__timing">
+          <span>Sync</span>
+          <select
+            onChange={(event) => {
+              if (!isLowPassLfoTiming(event.target.value)) return;
+              onChange({
+                ...settings,
+                timing: event.target.value,
+              });
+            }}
+            value={settings.timing}
+          >
+            {LOW_PASS_LFO_TIMINGS.map((timing) => (
+              <option key={timing.value} value={timing.value}>
+                {timing.label}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
     </fieldset>

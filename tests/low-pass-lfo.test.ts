@@ -3,9 +3,14 @@ import {
   clampLowPassLfo,
   LOW_PASS_LFO_RATE_MAX,
   LOW_PASS_LFO_RATE_MIN,
+  LOW_PASS_LFO_TEMPO_MAX,
+  LOW_PASS_LFO_TEMPO_MIN,
   lowPassLfoDepthHz,
+  lowPassLfoRateHz,
   lowPassLfoRateToPosition,
+  lowPassLfoTempoToPosition,
   positionToLowPassLfoRate,
+  positionToLowPassLfoTempo,
 } from "../app/earthscope/lowPassLfo";
 
 describe("low-pass LFO", () => {
@@ -14,6 +19,8 @@ describe("low-pass LFO", () => {
     expect(clampLowPassLfo("depth", 1.5)).toBe(1);
     expect(clampLowPassLfo("rate", 0)).toBe(LOW_PASS_LFO_RATE_MIN);
     expect(clampLowPassLfo("rate", 30)).toBe(LOW_PASS_LFO_RATE_MAX);
+    expect(clampLowPassLfo("tempoBpm", 10)).toBe(LOW_PASS_LFO_TEMPO_MIN);
+    expect(clampLowPassLfo("tempoBpm", 400)).toBe(LOW_PASS_LFO_TEMPO_MAX);
   });
 
   test("keeps the cutoff movement equally above and below its center", () => {
@@ -37,5 +44,26 @@ describe("low-pass LFO", () => {
         positionToLowPassLfoRate(lowPassLfoRateToPosition(rate)),
       ).toBeCloseTo(rate);
     }
+  });
+
+  test("maps the tempo dial endpoints exactly", () => {
+    expect(lowPassLfoTempoToPosition(LOW_PASS_LFO_TEMPO_MIN)).toBe(0);
+    expect(lowPassLfoTempoToPosition(LOW_PASS_LFO_TEMPO_MAX)).toBe(1);
+    expect(positionToLowPassLfoTempo(0)).toBe(LOW_PASS_LFO_TEMPO_MIN);
+    expect(positionToLowPassLfoTempo(1)).toBe(LOW_PASS_LFO_TEMPO_MAX);
+  });
+
+  test("turns musical divisions into rates at the selected tempo", () => {
+    const base = {
+      depth: 0.5,
+      rate: 0.5,
+      tempoBpm: 120,
+    };
+    expect(lowPassLfoRateHz({ ...base, timing: "free" })).toBe(0.5);
+    expect(lowPassLfoRateHz({ ...base, timing: "quarter" })).toBe(2);
+    expect(lowPassLfoRateHz({ ...base, timing: "eighth" })).toBe(4);
+    expect(lowPassLfoRateHz({ ...base, timing: "eighth-triplet" })).toBe(6);
+    expect(lowPassLfoRateHz({ ...base, timing: "sixteenth" })).toBe(8);
+    expect(lowPassLfoRateHz({ ...base, timing: "sixteenth-triplet" })).toBe(12);
   });
 });

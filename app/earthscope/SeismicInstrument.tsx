@@ -11,11 +11,9 @@ import {
 import { AboutDialog } from "./AboutDialog";
 import { InstrumentControls } from "./InstrumentControls";
 import {
-  clampLowPassLfo,
   DEFAULT_LOW_PASS_LFO,
-  type LowPassLfoKey,
+  type LowPassLfoSettings,
 } from "./lowPassLfo";
-import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { useMidiControls } from "./useMidiControls";
@@ -78,11 +76,8 @@ export function SeismicInstrument() {
     },
     [setAudioGateOpen],
   );
-  const changeLowPassLfo = (key: LowPassLfoKey, value: number) => {
-    setLowPassLfo((current) => ({
-      ...current,
-      [key]: clampLowPassLfo(key, value),
-    }));
+  const changeLowPassLfo = (settings: LowPassLfoSettings) => {
+    setLowPassLfo(settings);
   };
 
   return (
@@ -124,19 +119,14 @@ export function SeismicInstrument() {
         />
 
         <div className="instrument-panels">
-          <div className="instrument-control-row">
-            <InstrumentControls
-              availableSamples={signal.samples.length}
-              controls={controls}
-              onChange={changeControl}
-              sampleRate={signal.sampleRate}
-            />
-            <LowPassLfoPanel
-              cutoff={controls.cutoff}
-              onChange={changeLowPassLfo}
-              settings={lowPassLfo}
-            />
-          </div>
+          <InstrumentControls
+            availableSamples={signal.samples.length}
+            controls={controls}
+            lowPassLfo={lowPassLfo}
+            onChange={changeControl}
+            onLowPassLfoChange={changeLowPassLfo}
+            sampleRate={signal.sampleRate}
+          />
           <MidiPanel
             connect={midi.connect}
             connected={midi.connected}
