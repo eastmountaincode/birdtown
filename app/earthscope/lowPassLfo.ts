@@ -1,4 +1,5 @@
 import { clampControl, CONTROL_SPECS } from "./controls";
+import { clampTempo, TEMPO_MAX, TEMPO_MIN } from "./tempo";
 
 export interface LowPassLfoSettings {
   depth: number;
@@ -13,8 +14,8 @@ export type LowPassLfoKey = "depth" | "rate" | "tempoBpm";
 export const LOW_PASS_LFO_RATE_MIN = 0.1;
 export const LOW_PASS_LFO_RATE_MAX = 20;
 export const LOW_PASS_LFO_MINIMUM_FREQUENCY = 20;
-export const LOW_PASS_LFO_TEMPO_MIN = 30;
-export const LOW_PASS_LFO_TEMPO_MAX = 300;
+export const LOW_PASS_LFO_TEMPO_MIN = TEMPO_MIN;
+export const LOW_PASS_LFO_TEMPO_MAX = TEMPO_MAX;
 
 export const LOW_PASS_LFO_TIMINGS = [
   { beats: 4, label: "1/1", value: "whole" },
@@ -50,9 +51,7 @@ function clamp(value: number, minimum: number, maximum: number) {
 export function clampLowPassLfo(key: LowPassLfoKey, value: number) {
   if (key === "depth") return clamp(value, 0, 1);
   if (key === "tempoBpm") {
-    return Math.round(
-      clamp(value, LOW_PASS_LFO_TEMPO_MIN, LOW_PASS_LFO_TEMPO_MAX),
-    );
+    return clampTempo(value);
   }
   return clamp(value, LOW_PASS_LFO_RATE_MIN, LOW_PASS_LFO_RATE_MAX);
 }

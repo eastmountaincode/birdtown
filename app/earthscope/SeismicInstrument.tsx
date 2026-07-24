@@ -9,6 +9,7 @@ import {
   type VoiceControlKey,
 } from "./controls";
 import { AboutDialog } from "./AboutDialog";
+import { ClockPanel } from "./ClockPanel";
 import { InstrumentControls } from "./InstrumentControls";
 import {
   DEFAULT_LOW_PASS_LFO,
@@ -17,6 +18,8 @@ import {
 import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { clampTempo } from "./tempo";
+import { useMidiClock } from "./useMidiClock";
 import { useMidiControls } from "./useMidiControls";
 import { useSeismicAudio } from "./useSeismicAudio";
 import { voiceGateOpen } from "./voiceGate";
@@ -57,6 +60,10 @@ export function SeismicInstrument() {
     setPitchBendRatio: audio.setPitchBendRatio,
     setRepeatsPerSecond: audio.setRepeatsPerSecond,
   });
+  const midiClock = useMidiClock({
+    access: midi.midiAccess,
+    tempoBpm: lowPassLfo.tempoBpm,
+  });
 
   const changeControl = useCallback(
     (key: VoiceControlKey, value: number) => {
@@ -80,6 +87,12 @@ export function SeismicInstrument() {
   const changeLowPassLfo = (settings: LowPassLfoSettings) => {
     setLowPassLfo(settings);
   };
+  const changeTempo = useCallback((tempoBpm: number) => {
+    setLowPassLfo((current) => ({
+      ...current,
+      tempoBpm: clampTempo(tempoBpm),
+    }));
+  }, []);
 
   return (
     <main>
@@ -139,6 +152,20 @@ export function SeismicInstrument() {
             inputs={midi.inputs}
             onInputChange={midi.selectInput}
             selectedInputKey={midi.selectedInputKey}
+          />
+          <ClockPanel
+            canStart={midiClock.canStart}
+            connected={midi.midiAccess !== null}
+            error={midiClock.error}
+            onOutputChange={midiClock.selectOutput}
+            onStart={midiClock.start}
+            onStop={midiClock.stop}
+            onTempoChange={changeTempo}
+            outputs={midiClock.outputs}
+            running={midiClock.running}
+            selectedOutputIds={midiClock.selectedOutputIds}
+            starting={midiClock.starting}
+            tempoBpm={lowPassLfo.tempoBpm}
           />
           <SettingsPanel
             latchEnabled={latchEnabled}

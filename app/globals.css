@@ -203,7 +203,8 @@ legend {
   gap: 0.75rem;
 }
 
-.control-row {
+.control-row,
+.clock-output-row {
   display: grid;
   grid-template-columns: 10rem minmax(0, 1fr) 10rem;
   align-items: center;
@@ -242,6 +243,38 @@ legend {
 .low-pass-lfo__controls {
   display: grid;
   gap: 0.75rem;
+}
+
+.clock-output-row {
+  align-items: start;
+}
+
+.clock-output-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.clock-output-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.clock-output-option input {
+  min-height: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.clock-output-row button {
+  justify-self: end;
+}
+
+.clock-error {
+  margin: 0;
+  color: #b00000;
 }
 
 .midi-controls label {
@@ -368,13 +401,18 @@ legend {
     width: fit-content;
   }
 
-  .control-row {
+  .control-row,
+  .clock-output-row {
     grid-template-columns: 1fr;
     gap: 0.25rem;
   }
 
   .control-row output {
     text-align: left;
+  }
+
+  .clock-output-row button {
+    justify-self: start;
   }
 
   .midi-controls label {

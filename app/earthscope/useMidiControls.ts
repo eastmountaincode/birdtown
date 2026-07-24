@@ -31,6 +31,7 @@ interface MidiConnectionState {
   connected: boolean;
   connecting: boolean;
   inputs: MidiInputOption[];
+  midiAccess: MIDIAccess | null;
   selectedInputKey: string | null;
 }
 
@@ -43,6 +44,7 @@ const DISCONNECTED: MidiConnectionState = {
   connected: false,
   connecting: false,
   inputs: [],
+  midiAccess: null,
   selectedInputKey: null,
 };
 
@@ -441,6 +443,7 @@ export function useMidiControls({
       connected: true,
       connecting: false,
       inputs: options,
+      midiAccess: access,
       selectedInputKey: target?.key ?? null,
     }));
 
@@ -455,6 +458,7 @@ export function useMidiControls({
       connected: true,
       connecting: false,
       inputs: options,
+      midiAccess: access,
       selectedInputKey: null,
     }));
   }, [detachInputs, reconcileInputSelection]);
