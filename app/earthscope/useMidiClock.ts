@@ -8,8 +8,11 @@ import {
 } from "react";
 import {
   buildMidiClockSchedule,
+  canClearMidiOutputQueue,
+  clearMidiOutputQueue,
   midiClockOutputOptions,
   midiClockPulseIntervalMs,
+  midiClockScheduleWindow,
   midiOutputFingerprint,
   midiOutputTopology,
   MIDI_START,
@@ -22,8 +25,6 @@ import {
 } from "./midiClock";
 import { clampTempo } from "./tempo";
 
-const CLOCK_LOOKAHEAD_MS = 75_000;
-const CLOCK_REFILL_MS = 5_000;
 const CLOCK_START_DELAY_MS = 10;
 const CLOCK_TEMPO_SETTLE_MS = 100;
 
@@ -47,12 +48,20 @@ function preferenceCount(preferences: Map<string, number>) {
   );
 }
 
-interface ClearableMidiOutput extends MIDIOutput {
-  clear: () => void;
+function outputName(output: MIDIOutput) {
+  return output.name?.trim() || "MIDI output";
 }
 
-function clearMidiOutput(output: MIDIOutput) {
-  (output as ClearableMidiOutput).clear();
+function outputFailure(
+  action: string,
+  output: MIDIOutput,
+  error: unknown,
+) {
+  const detail =
+    error instanceof Error && error.message.trim()
+      ? `: ${error.message.trim()}`
+      : "";
+  return `${action} on ${outputName(output)}${detail}`;
 }
 
 interface MidiClockState {
@@ -129,10 +138,16 @@ export function useMidiClock({
       startingRef.current = false;
       for (const output of activeOutputsRef.current.values()) {
         try {
-          clearMidiOutput(output);
-          if (wasRunning) output.send([MIDI_STOP]);
+          clearMidiOutputQueue(output);
         } catch {
-          // A disconnected output cannot receive the final transport message.
+          // Stop must still be sent when queue clearing is unsupported or fails.
+        }
+        if (wasRunning || wasStarting) {
+          try {
+            output.send([MIDI_STOP]);
+          } catch {
+            // A disconnected output cannot receive the final transport message.
+          }
         }
       }
 
@@ -160,21 +175,28 @@ export function useMidiClock({
     }
 
     const now = performance.now();
+    const scheduleWindow = midiClockScheduleWindow(outputs);
     const schedule = buildMidiClockSchedule({
       nextPulseAt: nextPulseAtRef.current,
       now,
       tempoBpm: tempoBpmRef.current,
-      until: now + CLOCK_LOOKAHEAD_MS,
+      until: now + scheduleWindow.lookaheadMs,
     });
 
+    let currentOutput: MIDIOutput | null = null;
     try {
       for (const timestamp of schedule.timestamps) {
         for (const output of outputs) {
+          currentOutput = output;
           output.send([MIDI_TIMING_CLOCK], timestamp);
         }
       }
-    } catch {
-      stopTransport("MIDI clock output was disconnected.");
+    } catch (error) {
+      stopTransport(
+        currentOutput
+          ? outputFailure("MIDI clock stopped", currentOutput, error)
+          : "MIDI clock output was disconnected.",
+      );
       return;
     }
 
@@ -182,7 +204,7 @@ export function useMidiClock({
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(
       () => fillQueueRef.current(),
-      CLOCK_REFILL_MS,
+      scheduleWindow.refillMs,
     );
   }, [stopTransport]);
 
@@ -200,17 +222,26 @@ export function useMidiClock({
     tempoChangeTimerRef.current = window.setTimeout(() => {
       if (!runningRef.current) return;
       window.clearTimeout(timerRef.current);
-      for (const output of activeOutputsRef.current.values()) {
-        try {
-          clearMidiOutput(output);
-        } catch {
-          stopTransport("MIDI clock output was disconnected.");
-          return;
+      const outputs = [...activeOutputsRef.current.values()];
+      if (outputs.every(canClearMidiOutputQueue)) {
+        for (const output of outputs) {
+          try {
+            clearMidiOutputQueue(output);
+          } catch (error) {
+            stopTransport(
+              outputFailure(
+                "Could not update MIDI clock tempo",
+                output,
+                error,
+              ),
+            );
+            return;
+          }
         }
+        nextPulseAtRef.current =
+          performance.now() +
+          midiClockPulseIntervalMs(tempoBpmRef.current);
       }
-      nextPulseAtRef.current =
-        performance.now() +
-        midiClockPulseIntervalMs(tempoBpmRef.current);
       fillQueueRef.current();
     }, CLOCK_TEMPO_SETTLE_MS);
   }, [stopTransport, tempoBpm]);
@@ -494,15 +525,16 @@ export function useMidiClock({
     );
 
     const startAt = performance.now() + CLOCK_START_DELAY_MS;
-    try {
-      for (const output of openedOutputs) {
-        clearMidiOutput(output);
+    for (const output of openedOutputs) {
+      try {
         output.send([MIDI_START], startAt);
+      } catch (error) {
+        stopTransport(
+          outputFailure("Could not start MIDI clock", output, error),
+        );
+        void closeActiveOutputs();
+        return;
       }
-    } catch {
-      stopTransport("Could not start the MIDI clock.");
-      void closeActiveOutputs();
-      return;
     }
 
     nextPulseAtRef.current = startAt;
@@ -538,6 +570,9 @@ export function useMidiClock({
     canStart,
     selectOutput,
     start,
-    stop: () => stopTransport(),
+    stop: () => {
+      stopTransport();
+      void closeActiveOutputs();
+    },
   };
 }

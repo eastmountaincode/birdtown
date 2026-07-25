@@ -1,9 +1,14 @@
 import { describe, expect, test } from "vitest";
 import {
   buildMidiClockSchedule,
+  canClearMidiOutputQueue,
+  clearMidiOutputQueue,
   listMidiClockOutputs,
+  MIDI_CLOCK_CLEARABLE_WINDOW,
   midiClockOutputOptions,
   midiClockPulseIntervalMs,
+  MIDI_CLOCK_ROLLING_WINDOW,
+  midiClockScheduleWindow,
   midiOutputFingerprint,
   midiOutputTopology,
   MIDI_CLOCK_PPQN,
@@ -90,6 +95,30 @@ describe("MIDI clock", () => {
 
     expect(schedule.timestamps[0]).toBeGreaterThanOrEqual(100);
     expect(schedule.timestamps).toHaveLength(3);
+  });
+
+  test("uses a rolling queue when the browser cannot clear scheduled output", () => {
+    expect(canClearMidiOutputQueue({})).toBe(false);
+    expect(clearMidiOutputQueue({})).toBe(false);
+    expect(midiClockScheduleWindow([{}])).toBe(
+      MIDI_CLOCK_ROLLING_WINDOW,
+    );
+  });
+
+  test("keeps the long hidden-tab queue when every output can clear it", () => {
+    let clearCount = 0;
+    const output = {
+      clear: () => {
+        clearCount += 1;
+      },
+    };
+
+    expect(canClearMidiOutputQueue(output)).toBe(true);
+    expect(clearMidiOutputQueue(output)).toBe(true);
+    expect(clearCount).toBe(1);
+    expect(midiClockScheduleWindow([output, output])).toBe(
+      MIDI_CLOCK_CLEARABLE_WINDOW,
+    );
   });
 
   test("selects the documented MPK arp and physical DIN paths by default", () => {

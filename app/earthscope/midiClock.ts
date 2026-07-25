@@ -5,6 +5,16 @@ export const MIDI_START = 0xfa;
 export const MIDI_STOP = 0xfc;
 export const MIDI_CLOCK_PPQN = 24;
 
+export const MIDI_CLOCK_CLEARABLE_WINDOW = {
+  lookaheadMs: 75_000,
+  refillMs: 5_000,
+} as const;
+
+export const MIDI_CLOCK_ROLLING_WINDOW = {
+  lookaheadMs: 5_000,
+  refillMs: 1_000,
+} as const;
+
 export interface MidiOutputLike {
   id: string;
   manufacturer?: string | null;
@@ -17,6 +27,34 @@ export interface MidiClockOutputOption {
   fingerprint: string;
   id: string;
   name: string;
+}
+
+interface ClearableMidiOutput {
+  clear?: () => void;
+}
+
+function clearMethod(output: object) {
+  return (output as ClearableMidiOutput).clear;
+}
+
+export function canClearMidiOutputQueue(output: object) {
+  return typeof clearMethod(output) === "function";
+}
+
+export function clearMidiOutputQueue(output: object) {
+  if (!canClearMidiOutputQueue(output)) return false;
+  clearMethod(output)?.call(output);
+  return true;
+}
+
+export function midiClockScheduleWindow(
+  outputs: Iterable<object>,
+) {
+  const available = [...outputs];
+  return available.length > 0 &&
+    available.every(canClearMidiOutputQueue)
+    ? MIDI_CLOCK_CLEARABLE_WINDOW
+    : MIDI_CLOCK_ROLLING_WINDOW;
 }
 
 function normalizeMidiName(value: string | null | undefined) {
