@@ -18,7 +18,7 @@ import {
 import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
 import { SettingsPanel } from "./SettingsPanel";
-import { clampTempo } from "./tempo";
+import { clampTempo, DEFAULT_TEMPO } from "./tempo";
 import { useMidiClock } from "./useMidiClock";
 import { useMidiControls } from "./useMidiControls";
 import { useSeismicAudio } from "./useSeismicAudio";
@@ -35,12 +35,14 @@ export function SeismicInstrument() {
   const [latchEnabled, setLatchEnabled] = useState(true);
   const latchEnabledRef = useRef(true);
   const [lowPassLfo, setLowPassLfo] = useState(DEFAULT_LOW_PASS_LFO);
+  const [tempoBpm, setTempoBpm] = useState(DEFAULT_TEMPO);
   const audio = useSeismicAudio({
     controls,
     gateOpen: voiceGateOpen(latchEnabled, hasHeldMidiKeys),
     lowPassLfo,
     sampleRate: signal.sampleRate,
     samples: signal.samples,
+    tempoBpm,
   });
   const setAudioGateOpen = audio.setGateOpen;
   const changeHeldKeys = useCallback(
@@ -62,7 +64,7 @@ export function SeismicInstrument() {
   });
   const midiClock = useMidiClock({
     access: midi.midiAccess,
-    tempoBpm: lowPassLfo.tempoBpm,
+    tempoBpm,
   });
 
   const changeControl = useCallback(
@@ -88,10 +90,7 @@ export function SeismicInstrument() {
     setLowPassLfo(settings);
   };
   const changeTempo = useCallback((tempoBpm: number) => {
-    setLowPassLfo((current) => ({
-      ...current,
-      tempoBpm: clampTempo(tempoBpm),
-    }));
+    setTempoBpm(clampTempo(tempoBpm));
   }, []);
 
   return (
@@ -143,6 +142,7 @@ export function SeismicInstrument() {
             cutoff={controls.cutoff}
             onChange={changeLowPassLfo}
             settings={lowPassLfo}
+            tempoBpm={tempoBpm}
           />
           <MidiPanel
             connect={midi.connect}
@@ -165,7 +165,7 @@ export function SeismicInstrument() {
             running={midiClock.running}
             selectedOutputIds={midiClock.selectedOutputIds}
             starting={midiClock.starting}
-            tempoBpm={lowPassLfo.tempoBpm}
+            tempoBpm={tempoBpm}
           />
           <SettingsPanel
             latchEnabled={latchEnabled}

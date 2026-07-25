@@ -11,6 +11,7 @@ import {
   type LowPassLfoSettings,
 } from "./lowPassLfo";
 import { prepareLoop, recent } from "./signal";
+import { DEFAULT_TEMPO } from "./tempo";
 
 export interface SignalSource {
   sampleRate: number;
@@ -73,6 +74,7 @@ export async function startSeismicAudio(
   getControls: () => VoiceControls,
   getGateOpen: () => boolean = () => true,
   getLowPassLfo: () => LowPassLfoSettings = () => DEFAULT_LOW_PASS_LFO,
+  getTempoBpm: () => number = () => DEFAULT_TEMPO,
 ): Promise<SeismicAudioEngine> {
   requestPlaybackAudioSession();
   const context = new AudioContext({ latencyHint: "interactive" });
@@ -115,7 +117,10 @@ export async function startSeismicAudio(
   filter.frequency.value = controls.cutoff;
   filter.Q.value = controls.resonance;
   filterLfo.type = "sine";
-  filterLfo.frequency.value = lowPassLfoRateHz(lowPassLfo);
+  filterLfo.frequency.value = lowPassLfoRateHz(
+    lowPassLfo,
+    getTempoBpm(),
+  );
   filterLfoDepth.gain.value = lowPassLfoDepthHz(
     controls.cutoff,
     lowPassLfo.depth,
@@ -225,7 +230,7 @@ export async function startSeismicAudio(
     filter.frequency.setTargetAtTime(nextControls.cutoff, now, 0.01);
     filter.Q.setTargetAtTime(nextControls.resonance, now, 0.01);
     filterLfo.frequency.setTargetAtTime(
-      lowPassLfoRateHz(nextLowPassLfo),
+      lowPassLfoRateHz(nextLowPassLfo, getTempoBpm()),
       now,
       0.01,
     );

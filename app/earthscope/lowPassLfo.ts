@@ -1,21 +1,18 @@
 import { clampControl, CONTROL_SPECS } from "./controls";
-import { clampTempo, TEMPO_MAX, TEMPO_MIN } from "./tempo";
+import { clampTempo } from "./tempo";
 
 export interface LowPassLfoSettings {
   depth: number;
   rate: number;
   syncEnabled: boolean;
-  tempoBpm: number;
   timing: LowPassLfoTiming;
 }
 
-export type LowPassLfoKey = "depth" | "rate" | "tempoBpm";
+export type LowPassLfoKey = "depth" | "rate";
 
 export const LOW_PASS_LFO_RATE_MIN = 0.1;
 export const LOW_PASS_LFO_RATE_MAX = 20;
 export const LOW_PASS_LFO_MINIMUM_FREQUENCY = 20;
-export const LOW_PASS_LFO_TEMPO_MIN = TEMPO_MIN;
-export const LOW_PASS_LFO_TEMPO_MAX = TEMPO_MAX;
 
 export const LOW_PASS_LFO_TIMINGS = [
   { beats: 4, label: "1/1", value: "whole" },
@@ -39,7 +36,6 @@ export const DEFAULT_LOW_PASS_LFO: LowPassLfoSettings = {
   depth: 0,
   rate: 0.5,
   syncEnabled: false,
-  tempoBpm: 120,
   timing: "eighth",
 };
 
@@ -50,9 +46,6 @@ function clamp(value: number, minimum: number, maximum: number) {
 
 export function clampLowPassLfo(key: LowPassLfoKey, value: number) {
   if (key === "depth") return clamp(value, 0, 1);
-  if (key === "tempoBpm") {
-    return clampTempo(value);
-  }
   return clamp(value, LOW_PASS_LFO_RATE_MIN, LOW_PASS_LFO_RATE_MAX);
 }
 
@@ -107,7 +100,10 @@ export function positionToLowPassLfoTiming(position: number) {
   return LOW_PASS_LFO_TIMINGS[index] ?? LOW_PASS_LFO_TIMINGS[0];
 }
 
-export function lowPassLfoRateHz(settings: LowPassLfoSettings) {
+export function lowPassLfoRateHz(
+  settings: LowPassLfoSettings,
+  tempoBpm: number,
+) {
   if (!settings.syncEnabled) {
     return clampLowPassLfo("rate", settings.rate);
   }
@@ -117,7 +113,6 @@ export function lowPassLfoRateHz(settings: LowPassLfoSettings) {
   );
   if (!timing) return clampLowPassLfo("rate", settings.rate);
 
-  const beatsPerSecond =
-    clampLowPassLfo("tempoBpm", settings.tempoBpm) / 60;
+  const beatsPerSecond = clampTempo(tempoBpm) / 60;
   return beatsPerSecond / timing.beats;
 }
