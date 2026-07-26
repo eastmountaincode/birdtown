@@ -1,12 +1,18 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   audioOutputOptions,
   DEFAULT_AUDIO_OUTPUT,
   readAudioOutputPreference,
+  revealAudioOutputs,
+  setAudioContextOutput,
   writeAudioOutputPreference,
 } from "../app/earthscope/audioOutput";
 
 describe("audio output selection", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   test("lists named output devices after the system default", () => {
     expect(
       audioOutputOptions([
@@ -72,5 +78,84 @@ describe("audio output selection", () => {
         getItem: () => '{"deviceId": 4}',
       }),
     ).toEqual(DEFAULT_AUDIO_OUTPUT);
+  });
+
+  test("routes the complete AudioContext to the selected device", async () => {
+    const setSinkId = vi.fn(async () => undefined);
+    const context = { setSinkId } as unknown as AudioContext;
+
+    await setAudioContextOutput(context, "birdtown");
+
+    expect(setSinkId).toHaveBeenCalledWith("birdtown");
+  });
+
+  test("reports stale output ids without silently choosing another device", async () => {
+    const context = {
+      setSinkId: vi.fn(async () => {
+        throw new DOMException("Missing device", "NotFoundError");
+      }),
+    } as unknown as AudioContext;
+
+    await expect(
+      setAudioContextOutput(context, "disconnected-device"),
+    ).rejects.toThrow("That audio output is unavailable. Choose it again.");
+  });
+
+  test("does not require sink routing for the system default", async () => {
+    await expect(
+      setAudioContextOutput({} as AudioContext, ""),
+    ).resolves.toBeUndefined();
+    await expect(
+      setAudioContextOutput({} as AudioContext, "birdtown"),
+    ).rejects.toThrow("Audio output selection is unavailable in this browser.");
+  });
+
+  test("uses already-exposed named outputs without microphone access", async () => {
+    const getUserMedia = vi.fn();
+    const enumerateDevices = vi.fn(async () => [
+      {
+        deviceId: "birdtown",
+        kind: "audiooutput",
+        label: "Birdtown Out",
+      },
+    ]);
+    vi.stubGlobal("navigator", {
+      mediaDevices: { enumerateDevices, getUserMedia },
+    });
+
+    await expect(revealAudioOutputs()).resolves.toEqual([
+      DEFAULT_AUDIO_OUTPUT,
+      { deviceId: "birdtown", label: "Birdtown Out" },
+    ]);
+    expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
+  test("releases temporary microphone access after revealing outputs", async () => {
+    const stop = vi.fn();
+    const enumerateDevices = vi
+      .fn()
+      .mockResolvedValueOnce([
+        { deviceId: "hidden", kind: "audiooutput", label: "" },
+      ])
+      .mockResolvedValueOnce([
+        {
+          deviceId: "blackhole",
+          kind: "audiooutput",
+          label: "BlackHole 2ch",
+        },
+      ]);
+    const getUserMedia = vi.fn(async () => ({
+      getTracks: () => [{ stop }],
+    }));
+    vi.stubGlobal("navigator", {
+      mediaDevices: { enumerateDevices, getUserMedia },
+    });
+
+    await expect(revealAudioOutputs()).resolves.toEqual([
+      DEFAULT_AUDIO_OUTPUT,
+      { deviceId: "blackhole", label: "BlackHole 2ch" },
+    ]);
+    expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+    expect(stop).toHaveBeenCalledOnce();
   });
 });
