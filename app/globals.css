@@ -301,6 +301,23 @@ legend {
   padding: 0;
 }
 
+.audio-output-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.audio-output-control select {
+  width: 100%;
+}
+
+.audio-output-error {
+  margin: 0.5rem 0 0;
+  color: #b00000;
+}
+
 .site-footer {
   display: flex;
   align-items: center;
@@ -424,5 +441,10 @@ legend {
 
   .midi-controls label {
     margin-left: 0;
+  }
+
+  .audio-output-control {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
   }
 }

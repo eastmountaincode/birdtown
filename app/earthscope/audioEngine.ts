@@ -12,6 +12,7 @@ import {
 } from "./lowPassLfo";
 import { prepareLoop, recent } from "./signal";
 import { DEFAULT_TEMPO } from "./tempo";
+import { setAudioContextOutput } from "./audioOutput";
 
 export interface SignalSource {
   sampleRate: number;
@@ -20,6 +21,7 @@ export interface SignalSource {
 
 export interface SeismicAudioEngine {
   measure: () => number;
+  setOutputDevice: (deviceId: string) => Promise<void>;
   setGateOpen: (open: boolean) => void;
   setPitchBendRatio: (ratio: number) => void;
   setRepeatsPerSecond: (value: number) => void;
@@ -75,9 +77,16 @@ export async function startSeismicAudio(
   getGateOpen: () => boolean = () => true,
   getLowPassLfo: () => LowPassLfoSettings = () => DEFAULT_LOW_PASS_LFO,
   getTempoBpm: () => number = () => DEFAULT_TEMPO,
+  outputDeviceId = "",
 ): Promise<SeismicAudioEngine> {
   requestPlaybackAudioSession();
   const context = new AudioContext({ latencyHint: "interactive" });
+  try {
+    await setAudioContextOutput(context, outputDeviceId);
+  } catch (outputError) {
+    await context.close();
+    throw outputError;
+  }
   try {
     await context.resume();
   } catch {
@@ -251,6 +260,8 @@ export async function startSeismicAudio(
       for (const value of outputWaveform) energy += value * value;
       return Math.sqrt(energy / outputWaveform.length);
     },
+    setOutputDevice: (deviceId) =>
+      setAudioContextOutput(context, deviceId),
     setGateOpen: (open) => {
       if (open === gateOpen) return;
       gateOpen = open;

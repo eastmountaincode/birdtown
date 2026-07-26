@@ -24,6 +24,7 @@ import { useMidiControls } from "./useMidiControls";
 import { useSeismicAudio } from "./useSeismicAudio";
 import { voiceGateOpen } from "./voiceGate";
 import { WaveformPanel } from "./WaveformPanel";
+import { useAudioOutput } from "./useAudioOutput";
 
 const SUPPORT_URL = "https://ko-fi.com/I3I332AJE";
 
@@ -44,6 +45,7 @@ export function SeismicInstrument() {
     samples: signal.samples,
     tempoBpm,
   });
+  const audioOutput = useAudioOutput(audio.setOutputDevice);
   const setAudioGateOpen = audio.setGateOpen;
   const changeHeldKeys = useCallback(
     (hasHeldKeys: boolean) => {
@@ -168,6 +170,7 @@ export function SeismicInstrument() {
             tempoBpm={tempoBpm}
           />
           <SettingsPanel
+            audioOutput={audioOutput}
             latchEnabled={latchEnabled}
             onLatchChange={changeLatch}
           />
