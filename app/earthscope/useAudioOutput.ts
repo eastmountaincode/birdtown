@@ -8,12 +8,15 @@ import {
 } from "react";
 import {
   DEFAULT_AUDIO_OUTPUT,
+  readAudioOutputChannelPreference,
   readAudioOutputPreference,
   revealAudioOutputs,
   selectNativeAudioOutput,
   supportsAudioOutputRouting,
   supportsNativeAudioOutputPicker,
+  type AudioOutputChannel,
   type AudioOutputDevice,
+  writeAudioOutputChannelPreference,
   writeAudioOutputPreference,
 } from "./audioOutput";
 
@@ -45,6 +48,7 @@ function subscribeToOutputSupport() {
 
 export function useAudioOutput(
   applyOutput: (deviceId: string) => Promise<void>,
+  applyChannel: (channel: AudioOutputChannel) => void | Promise<void>,
 ) {
   const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +57,7 @@ export function useAudioOutput(
   ]);
   const [selected, setSelected] =
     useState<AudioOutputDevice>(DEFAULT_AUDIO_OUTPUT);
+  const [channel, setChannel] = useState<AudioOutputChannel>("stereo");
   const supported = useSyncExternalStore(
     subscribeToOutputSupport,
     supportsAudioOutputRouting,
@@ -66,15 +71,18 @@ export function useAudioOutput(
     void Promise.resolve().then(() => {
       if (!active) return;
       const stored = readAudioOutputPreference(window.localStorage);
+      const storedChannel = readAudioOutputChannelPreference(window.localStorage);
       setSelected(stored);
+      setChannel(storedChannel);
       setOutputs((current) => includeSelectedOutput(current, stored));
       void applyOutput(stored.deviceId);
+      void applyChannel(storedChannel);
     });
 
     return () => {
       active = false;
     };
-  }, [applyOutput, supported]);
+  }, [applyChannel, applyOutput, supported]);
 
   const commitOutput = useCallback(
     async (output: AudioOutputDevice) => {
@@ -124,12 +132,24 @@ export function useAudioOutput(
     [commitOutput, outputs, selected.deviceId],
   );
 
+  const selectChannel = useCallback(
+    async (nextChannel: AudioOutputChannel) => {
+      if (nextChannel === channel) return;
+      await applyChannel(nextChannel);
+      setChannel(nextChannel);
+      writeAudioOutputChannelPreference(window.localStorage, nextChannel);
+    },
+    [applyChannel, channel],
+  );
+
   return {
+    channel,
     choose,
     choosing,
     error,
     outputs,
     select,
+    selectChannel,
     selected,
     supported,
   };

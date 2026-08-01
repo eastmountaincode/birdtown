@@ -4,11 +4,14 @@ export const DEFAULT_AUDIO_OUTPUT = {
 } satisfies AudioOutputDevice;
 
 const AUDIO_OUTPUT_STORAGE_KEY = "birdtown.audio-output.v1";
+const AUDIO_OUTPUT_CHANNEL_STORAGE_KEY = "birdtown.audio-output-channel.v1";
 
 export interface AudioOutputDevice {
   deviceId: string;
   label: string;
 }
+
+export type AudioOutputChannel = "stereo" | "left" | "right";
 
 interface AudioOutputDeviceLike {
   deviceId: string;
@@ -139,4 +142,22 @@ export function writeAudioOutputPreference(
   output: AudioOutputDevice,
 ) {
   storage.setItem(AUDIO_OUTPUT_STORAGE_KEY, JSON.stringify(output));
+}
+
+export function readAudioOutputChannelPreference(
+  storage: Pick<Storage, "getItem">,
+): AudioOutputChannel {
+  try {
+    const stored = storage.getItem(AUDIO_OUTPUT_CHANNEL_STORAGE_KEY);
+    return stored === "left" || stored === "right" ? stored : "stereo";
+  } catch {
+    return "stereo";
+  }
+}
+
+export function writeAudioOutputChannelPreference(
+  storage: Pick<Storage, "setItem">,
+  channel: AudioOutputChannel,
+) {
+  storage.setItem(AUDIO_OUTPUT_CHANNEL_STORAGE_KEY, channel);
 }

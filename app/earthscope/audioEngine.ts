@@ -12,7 +12,10 @@ import {
 } from "./lowPassLfo";
 import { prepareLoop, recent } from "./signal";
 import { DEFAULT_TEMPO } from "./tempo";
-import { setAudioContextOutput } from "./audioOutput";
+import {
+  setAudioContextOutput,
+  type AudioOutputChannel,
+} from "./audioOutput";
 
 export interface SignalSource {
   sampleRate: number;
@@ -22,6 +25,7 @@ export interface SignalSource {
 export interface SeismicAudioEngine {
   measure: () => number;
   setOutputDevice: (deviceId: string) => Promise<void>;
+  setOutputChannel: (channel: AudioOutputChannel) => void;
   setGateOpen: (open: boolean) => void;
   setPitchBendRatio: (ratio: number) => void;
   setRepeatsPerSecond: (value: number) => void;
@@ -78,6 +82,7 @@ export async function startSeismicAudio(
   getLowPassLfo: () => LowPassLfoSettings = () => DEFAULT_LOW_PASS_LFO,
   getTempoBpm: () => number = () => DEFAULT_TEMPO,
   outputDeviceId = "",
+  outputChannel: AudioOutputChannel = "stereo",
 ): Promise<SeismicAudioEngine> {
   requestPlaybackAudioSession();
   const context = new AudioContext({ latencyHint: "interactive" });
@@ -114,6 +119,7 @@ export async function startSeismicAudio(
   const filterLfoDepth = context.createGain();
   const gate = context.createGain();
   const master = context.createGain();
+  const outputPanner = context.createStereoPanner();
   const lowPassLfo = getLowPassLfo();
   analyser.fftSize = 1024;
   analyser.smoothingTimeConstant = 0.72;
@@ -146,8 +152,23 @@ export async function startSeismicAudio(
     .connect(compressor)
     .connect(gate)
     .connect(master)
-    .connect(analyser)
-    .connect(context.destination);
+    .connect(analyser);
+  outputPanner.connect(context.destination);
+
+  const setOutputChannel = (channel: AudioOutputChannel) => {
+    analyser.disconnect();
+    if (channel === "stereo") {
+      analyser.connect(context.destination);
+      return;
+    }
+
+    outputPanner.pan.setValueAtTime(
+      channel === "left" ? -1 : 1,
+      context.currentTime,
+    );
+    analyser.connect(outputPanner);
+  };
+  setOutputChannel(outputChannel);
 
   let activeBuffer = makeLoopBuffer(context, initialValues, current.sampleRate);
   let activeSource = context.createBufferSource();
@@ -262,6 +283,7 @@ export async function startSeismicAudio(
     },
     setOutputDevice: (deviceId) =>
       setAudioContextOutput(context, deviceId),
+    setOutputChannel,
     setGateOpen: (open) => {
       if (open === gateOpen) return;
       gateOpen = open;

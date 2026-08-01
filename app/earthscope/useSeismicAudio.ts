@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startSeismicAudio, type SeismicAudioEngine } from "./audioEngine";
+import type { AudioOutputChannel } from "./audioOutput";
 import type { VoiceControls } from "./controls";
 import type { LowPassLfoSettings } from "./lowPassLfo";
 
@@ -29,6 +30,7 @@ export function useSeismicAudio({
   const lowPassLfoRef = useRef(lowPassLfo);
   const meterTimerRef = useRef(0);
   const outputDeviceIdRef = useRef("");
+  const outputChannelRef = useRef<AudioOutputChannel>("stereo");
   const pitchBendRatioRef = useRef(1);
   const rateRef = useRef(sampleRate);
   const runRef = useRef(0);
@@ -96,6 +98,11 @@ export function useSeismicAudio({
     outputDeviceIdRef.current = deviceId;
   }, []);
 
+  const setOutputChannel = useCallback((channel: AudioOutputChannel) => {
+    outputChannelRef.current = channel;
+    audioRef.current?.setOutputChannel(channel);
+  }, []);
+
   const togglePlayback = useCallback(async () => {
     if (playing) {
       await stop();
@@ -115,6 +122,7 @@ export function useSeismicAudio({
         () => lowPassLfoRef.current,
         () => tempoBpmRef.current,
         outputDeviceIdRef.current,
+        outputChannelRef.current,
       );
       if (run !== runRef.current) {
         await audio.stop();
@@ -157,6 +165,7 @@ export function useSeismicAudio({
     playing,
     setGateOpen,
     setOutputDevice,
+    setOutputChannel,
     setPitchBendRatio,
     setRepeatsPerSecond,
     togglePlayback,

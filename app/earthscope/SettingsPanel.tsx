@@ -8,10 +8,12 @@ export function SettingsPanel({
 }: {
   audioOutput: {
     choose: () => Promise<void>;
+    channel: "stereo" | "left" | "right";
     choosing: boolean;
     error: string | null;
     outputs: AudioOutputDevice[];
     select: (deviceId: string) => Promise<void>;
+    selectChannel: (channel: "stereo" | "left" | "right") => Promise<void>;
     selected: AudioOutputDevice;
     supported: boolean;
   };
@@ -31,9 +33,11 @@ export function SettingsPanel({
       </label>
       <AudioOutputControl
         choose={audioOutput.choose}
+        channel={audioOutput.channel}
         choosing={audioOutput.choosing}
         error={audioOutput.error}
         onChange={audioOutput.select}
+        onChannelChange={audioOutput.selectChannel}
         outputs={audioOutput.outputs}
         selected={audioOutput.selected}
         supported={audioOutput.supported}

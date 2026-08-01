@@ -45,7 +45,10 @@ export function SeismicInstrument() {
     samples: signal.samples,
     tempoBpm,
   });
-  const audioOutput = useAudioOutput(audio.setOutputDevice);
+  const audioOutput = useAudioOutput(
+    audio.setOutputDevice,
+    audio.setOutputChannel,
+  );
   const setAudioGateOpen = audio.setGateOpen;
   const changeHeldKeys = useCallback(
     (hasHeldKeys: boolean) => {
