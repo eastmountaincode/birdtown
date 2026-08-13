@@ -82,9 +82,11 @@ const INITIAL_STATE: MidiClockState = {
 
 export function useMidiClock({
   access,
+  onTransportChange,
   tempoBpm,
 }: {
   access: MIDIAccess | null;
+  onTransportChange?: (running: boolean, startedAtMs: number | null) => void;
   tempoBpm: number;
 }) {
   const [state, setState] = useState(INITIAL_STATE);
@@ -96,6 +98,7 @@ export function useMidiClock({
   const missingOutputPreferencesRef = useRef(new Map<string, string>());
   const nextPulseAtRef = useRef(0);
   const operationGenerationRef = useRef(0);
+  const onTransportChangeRef = useRef(onTransportChange);
   const outputPreferencesRef = useRef(new Map<string, number>());
   const errorRef = useRef<string | null>(null);
   const runningRef = useRef(false);
@@ -106,6 +109,10 @@ export function useMidiClock({
   const tempoBpmRef = useRef(clampTempo(tempoBpm));
   const tempoChangeTimerRef = useRef(0);
   const timerRef = useRef(0);
+
+  useEffect(() => {
+    onTransportChangeRef.current = onTransportChange;
+  }, [onTransportChange]);
 
   const closeActiveOutputs = useCallback(() => {
     const outputs = [...activeOutputsRef.current.values()];
@@ -136,6 +143,9 @@ export function useMidiClock({
       const wasStarting = startingRef.current;
       runningRef.current = false;
       startingRef.current = false;
+      if (wasRunning || wasStarting) {
+        onTransportChangeRef.current?.(false, null);
+      }
       for (const output of activeOutputsRef.current.values()) {
         try {
           clearMidiOutputQueue(output);
@@ -170,7 +180,8 @@ export function useMidiClock({
 
     const outputs = [...activeOutputsRef.current.values()];
     if (outputs.length === 0) {
-      stopTransport("No MIDI clock outputs are available.");
+      window.clearTimeout(timerRef.current);
+      timerRef.current = 0;
       return;
     }
 
@@ -249,7 +260,8 @@ export function useMidiClock({
   useEffect(() => {
     accessRef.current = access;
     if (!access) {
-      stopTransport(null, false);
+      window.clearTimeout(timerRef.current);
+      timerRef.current = 0;
       void closeActiveOutputs();
       errorRef.current = null;
       const resetTimer = window.setTimeout(() => {
@@ -257,8 +269,9 @@ export function useMidiClock({
           ...current,
           error: null,
           outputs: [],
-          running: false,
-          starting: false,
+          running: runningRef.current,
+          selectedOutputIds: [],
+          starting: startingRef.current,
         }));
       }, 0);
       return () => window.clearTimeout(resetTimer);
@@ -362,7 +375,8 @@ export function useMidiClock({
       active = false;
       window.clearTimeout(topologyTimer);
       access.removeEventListener("statechange", handleStateChange);
-      stopTransport(null, false);
+      window.clearTimeout(timerRef.current);
+      timerRef.current = 0;
       void closeActiveOutputs();
     };
   }, [access, closeActiveOutputs, stopTransport]);
@@ -432,16 +446,7 @@ export function useMidiClock({
 
   const performStart = useCallback(async () => {
     const initialAccess = accessRef.current;
-    if (!initialAccess || runningRef.current || startingRef.current) return;
-
-    if (preferenceCount(outputPreferencesRef.current) === 0) {
-      errorRef.current = "Choose at least one MIDI clock output.";
-      setState((current) => ({
-        ...current,
-        error: errorRef.current,
-      }));
-      return;
-    }
+    if (runningRef.current || startingRef.current) return;
 
     const generation = operationGenerationRef.current + 1;
     operationGenerationRef.current = generation;
@@ -453,6 +458,21 @@ export function useMidiClock({
       starting: true,
     }));
 
+    if (!initialAccess) {
+      const startAt = performance.now() + CLOCK_START_DELAY_MS;
+      nextPulseAtRef.current = startAt;
+      runningRef.current = true;
+      startingRef.current = false;
+      onTransportChangeRef.current?.(true, startAt);
+      setState((current) => ({
+        ...current,
+        error: null,
+        running: true,
+        starting: false,
+      }));
+      return;
+    }
+
     await closingOutputsRef.current.catch(() => undefined);
     if (
       generation !== operationGenerationRef.current ||
@@ -463,22 +483,15 @@ export function useMidiClock({
 
     const currentAccess = accessRef.current;
     const selectedIds = selectedOutputIdsRef.current;
-    const outputs = resolveMidiClockOutputs(
-      currentAccess.outputs.values(),
-      selectedIds,
-    );
+    const outputs = currentAccess
+      ? resolveMidiClockOutputs(currentAccess.outputs.values(), selectedIds)
+      : [];
+    const outputErrors: string[] = [];
     if (
-      outputs.length !== selectedIds.size ||
-      outputs.length !== preferenceCount(outputPreferencesRef.current)
+      currentAccess &&
+      preferenceCount(outputPreferencesRef.current) > outputs.length
     ) {
-      errorRef.current = "A selected MIDI clock output is disconnected.";
-      startingRef.current = false;
-      setState((current) => ({
-        ...current,
-        error: errorRef.current,
-        starting: false,
-      }));
-      return;
+      outputErrors.push("A selected MIDI clock output is disconnected.");
     }
 
     const opened = await Promise.allSettled(
@@ -504,20 +517,7 @@ export function useMidiClock({
     }
 
     if (openedOutputs.length !== outputs.length) {
-      await Promise.all(
-        openedOutputs.map((output) =>
-          output.close().catch(() => undefined),
-        ),
-      );
-      errorRef.current = "Could not open every selected MIDI clock output.";
-      startingRef.current = false;
-      setState((current) => ({
-        ...current,
-        error: errorRef.current,
-        running: false,
-        starting: false,
-      }));
-      return;
+      outputErrors.push("Could not open every selected MIDI clock output.");
     }
 
     activeOutputsRef.current = new Map(
@@ -529,26 +529,25 @@ export function useMidiClock({
       try {
         output.send([MIDI_START], startAt);
       } catch (error) {
-        stopTransport(
-          outputFailure("Could not start MIDI clock", output, error),
-        );
-        void closeActiveOutputs();
-        return;
+        outputErrors.push(outputFailure("Could not start MIDI clock", output, error));
+        activeOutputsRef.current.delete(output.id);
+        void output.close().catch(() => undefined);
       }
     }
 
     nextPulseAtRef.current = startAt;
-    errorRef.current = null;
+    errorRef.current = outputErrors[0] ?? null;
     runningRef.current = true;
     startingRef.current = false;
+    onTransportChangeRef.current?.(true, startAt);
     setState((current) => ({
       ...current,
-      error: null,
+      error: errorRef.current,
       running: true,
       starting: false,
     }));
     fillQueueRef.current();
-  }, [closeActiveOutputs, stopTransport]);
+  }, []);
 
   const start = useCallback(() => {
     const attempt = startAttemptsRef.current
@@ -558,12 +557,7 @@ export function useMidiClock({
     return attempt;
   }, [performStart]);
 
-  const selectedOptions = new Set(state.selectedOutputIds);
-  const canStart =
-    selectedOptions.size > 0 &&
-    [...selectedOptions].every((id) =>
-      state.outputs.some((output) => output.id === id && output.available),
-    );
+  const canStart = true;
 
   return {
     ...state,

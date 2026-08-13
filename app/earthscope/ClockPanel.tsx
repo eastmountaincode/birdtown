@@ -75,7 +75,7 @@ export function ClockPanel({
           </div>
           <button
             disabled={
-              !connected || starting || (!running && !canStart)
+              starting || (!running && !canStart)
             }
             onClick={() => (running ? onStop() : void onStart())}
             type="button"

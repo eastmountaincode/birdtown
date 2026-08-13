@@ -18,6 +18,11 @@ import {
 import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { SequencerPanel } from "./SequencerPanel";
+import {
+  DEFAULT_SEQUENCE,
+  STOPPED_SEQUENCER_TRANSPORT,
+} from "./sequencer";
 import { clampTempo, DEFAULT_TEMPO } from "./tempo";
 import { useMidiClock } from "./useMidiClock";
 import { useMidiControls } from "./useMidiControls";
@@ -37,12 +42,24 @@ export function SeismicInstrument() {
   const latchEnabledRef = useRef(true);
   const [lowPassLfo, setLowPassLfo] = useState(DEFAULT_LOW_PASS_LFO);
   const [tempoBpm, setTempoBpm] = useState(DEFAULT_TEMPO);
+  const [sequence, setSequence] = useState(DEFAULT_SEQUENCE);
+  const [sequenceTransport, setSequenceTransport] = useState(
+    STOPPED_SEQUENCER_TRANSPORT,
+  );
+  const changeSequenceTransport = useCallback(
+    (running: boolean, startedAtMs: number | null) => {
+      setSequenceTransport({ running, startedAtMs });
+    },
+    [],
+  );
   const audio = useSeismicAudio({
     controls,
     gateOpen: voiceGateOpen(latchEnabled, hasHeldMidiKeys),
     lowPassLfo,
     sampleRate: signal.sampleRate,
     samples: signal.samples,
+    sequence,
+    sequenceTransport,
     tempoBpm,
   });
   const audioOutput = useAudioOutput(
@@ -69,6 +86,7 @@ export function SeismicInstrument() {
   });
   const midiClock = useMidiClock({
     access: midi.midiAccess,
+    onTransportChange: changeSequenceTransport,
     tempoBpm,
   });
 
@@ -148,6 +166,11 @@ export function SeismicInstrument() {
             onChange={changeLowPassLfo}
             settings={lowPassLfo}
             tempoBpm={tempoBpm}
+          />
+          <SequencerPanel
+            activeStep={audio.sequenceStep}
+            onChange={setSequence}
+            sequence={sequence}
           />
           <MidiPanel
             connect={midi.connect}

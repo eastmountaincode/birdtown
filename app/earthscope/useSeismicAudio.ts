@@ -5,6 +5,7 @@ import { startSeismicAudio, type SeismicAudioEngine } from "./audioEngine";
 import type { AudioOutputChannel } from "./audioOutput";
 import type { VoiceControls } from "./controls";
 import type { LowPassLfoSettings } from "./lowPassLfo";
+import type { MelodicSequence, SequencerTransport } from "./sequencer";
 
 export function useSeismicAudio({
   controls,
@@ -12,6 +13,8 @@ export function useSeismicAudio({
   lowPassLfo,
   sampleRate,
   samples,
+  sequence,
+  sequenceTransport,
   tempoBpm,
 }: {
   controls: VoiceControls;
@@ -19,11 +22,14 @@ export function useSeismicAudio({
   lowPassLfo: LowPassLfoSettings;
   sampleRate: number;
   samples: number[];
+  sequence: MelodicSequence;
+  sequenceTransport: SequencerTransport;
   tempoBpm: number;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [level, setLevel] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [sequenceStep, setSequenceStep] = useState<number | null>(null);
   const audioRef = useRef<SeismicAudioEngine | null>(null);
   const controlsRef = useRef(controls);
   const gateOpenRef = useRef(gateOpen);
@@ -35,6 +41,9 @@ export function useSeismicAudio({
   const rateRef = useRef(sampleRate);
   const runRef = useRef(0);
   const samplesRef = useRef(samples);
+  const sequenceRef = useRef(sequence);
+  const sequenceTransportRef = useRef(sequenceTransport);
+  const sequenceTimerRef = useRef(0);
   const startingRef = useRef(false);
   const tempoBpmRef = useRef(tempoBpm);
 
@@ -49,6 +58,12 @@ export function useSeismicAudio({
   useEffect(() => {
     tempoBpmRef.current = tempoBpm;
   }, [tempoBpm]);
+
+  useEffect(() => {
+    sequenceRef.current = sequence;
+    sequenceTransportRef.current = sequenceTransport;
+    audioRef.current?.setSequence(sequence, sequenceTransport);
+  }, [sequence, sequenceTransport]);
 
   const setGateOpen = useCallback((open: boolean) => {
     gateOpenRef.current = open;
@@ -70,8 +85,10 @@ export function useSeismicAudio({
     const audio = audioRef.current;
     audioRef.current = null;
     window.clearInterval(meterTimerRef.current);
+    window.clearInterval(sequenceTimerRef.current);
     setLevel(0);
     setPlaying(false);
+    setSequenceStep(null);
     await audio?.stop();
   }, []);
 
@@ -121,6 +138,8 @@ export function useSeismicAudio({
         () => gateOpenRef.current,
         () => lowPassLfoRef.current,
         () => tempoBpmRef.current,
+        sequenceRef.current,
+        sequenceTransportRef.current,
         outputDeviceIdRef.current,
         outputChannelRef.current,
       );
@@ -136,6 +155,9 @@ export function useSeismicAudio({
         const decibels = 20 * Math.log10(Math.max(audio.measure(), 0.000001));
         setLevel(Math.max(0, Math.min(1, (decibels + 60) / 54)));
       }, 200);
+      sequenceTimerRef.current = window.setInterval(() => {
+        setSequenceStep(audio.currentSequenceStep());
+      }, 50);
     } catch (startError) {
       if (run === runRef.current) {
         setPlaying(false);
@@ -153,6 +175,7 @@ export function useSeismicAudio({
       runRef.current += 1;
       startingRef.current = false;
       window.clearInterval(meterTimerRef.current);
+      window.clearInterval(sequenceTimerRef.current);
       void audioRef.current?.stop();
     },
     [],
@@ -163,6 +186,7 @@ export function useSeismicAudio({
     error,
     level,
     playing,
+    sequenceStep,
     setGateOpen,
     setOutputDevice,
     setOutputChannel,

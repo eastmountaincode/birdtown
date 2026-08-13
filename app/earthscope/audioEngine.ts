@@ -1,5 +1,5 @@
 import { EARTHSCOPE_WINDOW_SECONDS } from "../lib/earthScopeConfig";
-import { browserBufferRate, playbackRateForRepeats } from "./audioMath";
+import { browserBufferRate } from "./audioMath";
 import {
   effectiveLoopSampleCount,
   type VoiceControls,
@@ -13,6 +13,15 @@ import {
 import { prepareLoop, recent } from "./signal";
 import { DEFAULT_TEMPO } from "./tempo";
 import {
+  DEFAULT_SEQUENCE,
+  sequenceHasNotes,
+  sequencePositionAtTime,
+  sequenceRateAtStep,
+  sequenceStepDurationSeconds,
+  type MelodicSequence,
+  type SequencerTransport,
+} from "./sequencer";
+import {
   setAudioContextOutput,
   type AudioOutputChannel,
 } from "./audioOutput";
@@ -23,14 +32,22 @@ export interface SignalSource {
 }
 
 export interface SeismicAudioEngine {
+  currentSequenceStep: () => number | null;
   measure: () => number;
   setOutputDevice: (deviceId: string) => Promise<void>;
   setOutputChannel: (channel: AudioOutputChannel) => void;
   setGateOpen: (open: boolean) => void;
   setPitchBendRatio: (ratio: number) => void;
   setRepeatsPerSecond: (value: number) => void;
+  setSequence: (
+    sequence: MelodicSequence,
+    transport: SequencerTransport,
+  ) => void;
   stop: () => Promise<void>;
 }
+
+const SEQUENCE_LOOKAHEAD_SECONDS = 240;
+const SEQUENCE_REFILL_MARGIN_SECONDS = 60;
 
 type NavigatorWithAudioSession = Navigator & {
   audioSession?: {
@@ -81,6 +98,11 @@ export async function startSeismicAudio(
   getGateOpen: () => boolean = () => true,
   getLowPassLfo: () => LowPassLfoSettings = () => DEFAULT_LOW_PASS_LFO,
   getTempoBpm: () => number = () => DEFAULT_TEMPO,
+  initialSequence: MelodicSequence = DEFAULT_SEQUENCE,
+  initialSequenceTransport: SequencerTransport = {
+    running: false,
+    startedAtMs: null,
+  },
   outputDeviceId = "",
   outputChannel: AudioOutputChannel = "stereo",
 ): Promise<SeismicAudioEngine> {
@@ -118,8 +140,10 @@ export async function startSeismicAudio(
   const filterLfo = context.createOscillator();
   const filterLfoDepth = context.createGain();
   const gate = context.createGain();
+  const sequenceGate = context.createGain();
   const master = context.createGain();
   const outputPanner = context.createStereoPanner();
+  const repeatRateSignal = context.createConstantSource();
   const lowPassLfo = getLowPassLfo();
   analyser.fftSize = 1024;
   analyser.smoothingTimeConstant = 0.72;
@@ -146,11 +170,15 @@ export async function startSeismicAudio(
   drive.gain.value = 0.9;
   let gateOpen = getGateOpen();
   gate.gain.value = gateOpen ? 1 : 0;
+  sequenceGate.gain.value = 1;
   master.gain.value = controls.volume;
+  repeatRateSignal.offset.value = controls.repeatsPerSecond;
+  repeatRateSignal.start();
   filter
     .connect(drive)
     .connect(compressor)
     .connect(gate)
+    .connect(sequenceGate)
     .connect(master)
     .connect(analyser);
   outputPanner.connect(context.destination);
@@ -173,9 +201,16 @@ export async function startSeismicAudio(
   let activeBuffer = makeLoopBuffer(context, initialValues, current.sampleRate);
   let activeSource = context.createBufferSource();
   let activeGain = context.createGain();
+  let activeRateScale = context.createGain();
   let activeSignalSamples = current.samples;
   let activeSampleRate = current.sampleRate;
   let activeSampleCount = initialValues.length;
+  let manualRepeatRate = controls.repeatsPerSecond;
+  let sequence = initialSequence;
+  let sequenceTransport = initialSequenceTransport;
+  let sequenceStartAt = context.currentTime;
+  let sequenceScheduledUntil = 0;
+  let scheduledTempoBpm = getTempoBpm();
   let activeRepeats = controls.repeatsPerSecond;
   let pitchBendRatio = 1;
   let phase = 0;
@@ -184,34 +219,144 @@ export async function startSeismicAudio(
   const effectiveRepeatRate = (repeatsPerSecond: number) =>
     repeatsPerSecond * pitchBendRatio;
 
+  const sequenceIsRunning = () =>
+    sequenceTransport.running && sequenceHasNotes(sequence);
+
+  const connectRepeatRate = (
+    source: AudioBufferSourceNode,
+    buffer: AudioBuffer,
+    rateScale: GainNode,
+  ) => {
+    source.playbackRate.value = 0;
+    rateScale.gain.value = buffer.duration * pitchBendRatio;
+    repeatRateSignal.connect(rateScale);
+    rateScale.connect(source.playbackRate);
+  };
+
+  const currentSequenceStep = (now = context.currentTime) =>
+    sequenceIsRunning()
+      ? sequencePositionAtTime({
+          length: sequence.length,
+          now,
+          startAt: sequenceStartAt,
+          tempoBpm: scheduledTempoBpm,
+        }).step
+      : null;
+
+  const repeatRateAt = (now: number) => {
+    if (!sequenceIsRunning()) {
+      return effectiveRepeatRate(manualRepeatRate);
+    }
+    const step = currentSequenceStep(now) ?? 0;
+    return effectiveRepeatRate(
+      sequenceRateAtStep(sequence, step, manualRepeatRate),
+    );
+  };
+
+  const updatePhase = (now: number) => {
+    phase = (phase + (now - phaseUpdatedAt) * activeRepeats) % 1;
+    phaseUpdatedAt = now;
+    activeRepeats = repeatRateAt(now);
+  };
+
+  const scheduleSequence = (
+    nextSequence: MelodicSequence,
+    nextTempoBpm: number,
+    nextTransport: SequencerTransport,
+    now = context.currentTime,
+  ) => {
+    const wasEnabled = sequenceIsRunning();
+    const sameTransport =
+      wasEnabled &&
+      nextTransport.running &&
+      nextTransport.startedAtMs === sequenceTransport.startedAtMs;
+    const previousPosition = wasEnabled
+      ? sequencePositionAtTime({
+          length: sequence.length,
+          now,
+          startAt: sequenceStartAt,
+          tempoBpm: scheduledTempoBpm,
+        })
+      : { progress: 0, step: 0 };
+
+    sequence = nextSequence;
+    sequenceTransport = nextTransport;
+    scheduledTempoBpm = nextTempoBpm;
+    repeatRateSignal.offset.cancelScheduledValues(now);
+    sequenceGate.gain.cancelScheduledValues(now);
+
+    if (!sequenceIsRunning()) {
+      sequenceStartAt = now;
+      sequenceScheduledUntil = 0;
+      repeatRateSignal.offset.setValueAtTime(manualRepeatRate, now);
+      sequenceGate.gain.setTargetAtTime(1, now, 0.006);
+      activeRepeats = effectiveRepeatRate(manualRepeatRate);
+      return;
+    }
+
+    const stepDuration = sequenceStepDurationSeconds(scheduledTempoBpm);
+    const preservedStep = previousPosition.step % sequence.length;
+    sequenceStartAt = sameTransport
+      ? now - (preservedStep + previousPosition.progress) * stepDuration
+      : nextTransport.startedAtMs === null
+        ? now
+        : now + (nextTransport.startedAtMs - performance.now()) / 1000;
+
+    const position = sequencePositionAtTime({
+      length: sequence.length,
+      now,
+      startAt: sequenceStartAt,
+      tempoBpm: scheduledTempoBpm,
+    });
+    const currentNote = sequence.notes[position.step] ?? null;
+    repeatRateSignal.offset.setValueAtTime(
+      sequenceRateAtStep(sequence, position.step, manualRepeatRate),
+      now,
+    );
+    sequenceGate.gain.setTargetAtTime(currentNote === null ? 0 : 1, now, 0.006);
+
+    let step = (position.step + 1) % sequence.length;
+    let stepAt = now + (1 - position.progress) * stepDuration;
+    const scheduleUntil = now + SEQUENCE_LOOKAHEAD_SECONDS;
+    while (stepAt < scheduleUntil) {
+      const note = sequence.notes[step] ?? null;
+      if (note !== null) {
+        repeatRateSignal.offset.setValueAtTime(
+          sequenceRateAtStep(sequence, step, manualRepeatRate),
+          stepAt,
+        );
+      }
+      sequenceGate.gain.setTargetAtTime(note === null ? 0 : 1, stepAt, 0.006);
+      step = (step + 1) % sequence.length;
+      stepAt += stepDuration;
+    }
+    sequenceScheduledUntil = stepAt;
+    activeRepeats = repeatRateAt(now);
+  };
+
   activeSource.loop = true;
   activeSource.buffer = activeBuffer;
-  activeSource.playbackRate.value = playbackRateForRepeats(
-    activeBuffer.duration,
-    controls.repeatsPerSecond,
-  );
+  connectRepeatRate(activeSource, activeBuffer, activeRateScale);
   activeSource.connect(activeGain).connect(filter);
   activeSource.start();
+  scheduleSequence(sequence, scheduledTempoBpm, sequenceTransport);
 
   const setActiveRepeatRate = (
     repeatsPerSecond: number,
     now = context.currentTime,
     smooth = true,
   ) => {
-    phase = (phase + (now - phaseUpdatedAt) * activeRepeats) % 1;
-    phaseUpdatedAt = now;
-    activeRepeats = Number.isFinite(repeatsPerSecond)
+    updatePhase(now);
+    manualRepeatRate = Number.isFinite(repeatsPerSecond)
       ? Math.max(0.000001, repeatsPerSecond)
-      : activeRepeats;
-    activeSource.playbackRate.cancelScheduledValues(now);
-    const playbackRate = playbackRateForRepeats(
-      activeBuffer.duration,
-      activeRepeats,
-    );
+      : manualRepeatRate;
+    if (sequenceIsRunning()) return;
+    activeRepeats = effectiveRepeatRate(manualRepeatRate);
+    repeatRateSignal.offset.cancelScheduledValues(now);
     if (smooth) {
-      activeSource.playbackRate.setTargetAtTime(playbackRate, now, 0.01);
+      repeatRateSignal.offset.setTargetAtTime(manualRepeatRate, now, 0.01);
     } else {
-      activeSource.playbackRate.setValueAtTime(playbackRate, now);
+      repeatRateSignal.offset.setValueAtTime(manualRepeatRate, now);
     }
   };
 
@@ -220,10 +365,21 @@ export async function startSeismicAudio(
     const nextLowPassLfo = getLowPassLfo();
     const latest = getSignal();
     const now = context.currentTime;
-    setActiveRepeatRate(
-      effectiveRepeatRate(nextControls.repeatsPerSecond),
-      now,
-    );
+    if (sequenceIsRunning()) {
+      updatePhase(now);
+    } else {
+      setActiveRepeatRate(nextControls.repeatsPerSecond, now);
+    }
+
+    const nextTempoBpm = getTempoBpm();
+    if (nextTempoBpm !== scheduledTempoBpm) {
+      scheduleSequence(sequence, nextTempoBpm, sequenceTransport, now);
+    } else if (
+      sequenceIsRunning() &&
+      sequenceScheduledUntil - now < SEQUENCE_REFILL_MARGIN_SECONDS
+    ) {
+      scheduleSequence(sequence, scheduledTempoBpm, sequenceTransport, now);
+    }
 
     const nextValues = loopValues(latest, nextControls.sampleCount);
     if (
@@ -235,12 +391,10 @@ export async function startSeismicAudio(
       const nextBuffer = makeLoopBuffer(context, nextValues, latest.sampleRate);
       const nextSource = context.createBufferSource();
       const nextGain = context.createGain();
+      const nextRateScale = context.createGain();
       nextSource.loop = true;
       nextSource.buffer = nextBuffer;
-      nextSource.playbackRate.value = playbackRateForRepeats(
-        nextBuffer.duration,
-        effectiveRepeatRate(nextControls.repeatsPerSecond),
-      );
+      connectRepeatRate(nextSource, nextBuffer, nextRateScale);
       nextGain.gain.setValueAtTime(0, now);
       nextGain.gain.linearRampToValueAtTime(1, now + 0.03);
       nextSource.connect(nextGain).connect(filter);
@@ -248,10 +402,13 @@ export async function startSeismicAudio(
 
       activeGain.gain.setValueAtTime(activeGain.gain.value, now);
       activeGain.gain.linearRampToValueAtTime(0, now + 0.03);
+      const previousRateScale = activeRateScale;
       activeSource.stop(now + 0.04);
+      activeSource.onended = () => previousRateScale.disconnect();
       activeBuffer = nextBuffer;
       activeSource = nextSource;
       activeGain = nextGain;
+      activeRateScale = nextRateScale;
       activeSignalSamples = latest.samples;
       activeSampleRate = latest.sampleRate;
       activeSampleCount = nextValues.length;
@@ -275,6 +432,7 @@ export async function startSeismicAudio(
   const outputWaveform = new Float32Array(analyser.fftSize);
 
   return {
+    currentSequenceStep,
     measure: () => {
       analyser.getFloatTimeDomainData(outputWaveform);
       let energy = 0;
@@ -292,23 +450,26 @@ export async function startSeismicAudio(
       gate.gain.setTargetAtTime(open ? 1 : 0, now, 0.006);
     },
     setPitchBendRatio: (ratio) => {
+      const now = context.currentTime;
+      updatePhase(now);
       pitchBendRatio =
         Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
-      setActiveRepeatRate(
-        effectiveRepeatRate(getControls().repeatsPerSecond),
-        context.currentTime,
-        false,
+      activeRateScale.gain.setValueAtTime(
+        activeBuffer.duration * pitchBendRatio,
+        now,
       );
+      activeRepeats = repeatRateAt(now);
     },
     setRepeatsPerSecond: (value) => {
-      setActiveRepeatRate(
-        effectiveRepeatRate(value),
-        context.currentTime,
-        false,
-      );
+      setActiveRepeatRate(value, context.currentTime, false);
+    },
+    setSequence: (nextSequence, nextTransport) => {
+      updatePhase(context.currentTime);
+      scheduleSequence(nextSequence, getTempoBpm(), nextTransport);
     },
     stop: async () => {
       window.clearInterval(updateTimer);
+      repeatRateSignal.stop();
       master.gain.setTargetAtTime(0, context.currentTime, 0.02);
       await new Promise((resolve) => window.setTimeout(resolve, 80));
       await context.close();

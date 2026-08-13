@@ -284,6 +284,109 @@ legend {
   color: #b00000;
 }
 
+.sequencer-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.sequencer-step-control,
+.sequencer-step-options,
+.sequencer-step-options label,
+.sequencer-octave-control {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sequencer-step-control,
+.sequencer-octave-control {
+  gap: 0.6rem;
+}
+
+.sequencer-step-options {
+  gap: 0.75rem;
+}
+
+.sequencer-step-options label {
+  cursor: pointer;
+}
+
+.sequencer-step-options input {
+  min-height: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.sequencer-octave-control input {
+  width: 10rem;
+}
+
+.sequencer-octave-control output {
+  min-width: 1ch;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.sequencer-grid-wrap {
+  width: 100%;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+}
+
+.sequencer-grid {
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0.2rem;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.sequencer-grid th {
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  font-weight: normal;
+  text-align: center;
+}
+
+.sequencer-grid tbody th {
+  padding-right: 0.25rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sequencer-grid td {
+  padding: 0;
+}
+
+.sequencer-grid button {
+  display: block;
+  width: 1.25rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  min-height: 1.25rem;
+  padding: 0;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+.sequencer-grid button[aria-pressed="true"] {
+  background: #111111;
+}
+
+.sequencer-grid .is-current {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.sequencer-grid thead .is-current {
+  background: var(--focus);
+  box-shadow: none;
+}
+
 .midi-controls label {
   margin-left: 0.5rem;
 }
