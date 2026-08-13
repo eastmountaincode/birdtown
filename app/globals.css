@@ -300,8 +300,7 @@ legend {
 .sequencer-step-options label,
 .sequencer-octave-control,
 .sequencer-octave-options,
-.sequencer-octave-options label,
-.sequencer-toggle {
+.sequencer-octave-options label {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -322,16 +321,21 @@ legend {
   cursor: pointer;
 }
 
-.sequencer-toggle {
-  cursor: pointer;
+.sequencer-action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .sequencer-step-options input,
-.sequencer-octave-options input,
-.sequencer-toggle input {
+.sequencer-octave-options input {
   min-height: auto;
   margin: 0;
   padding: 0;
+}
+
+.sequencer-action-buttons button[aria-pressed="true"] {
+  border-style: inset;
 }
 
 .sequencer-grid-wrap {

@@ -93,26 +93,6 @@ export function SequencerPanel({
     <fieldset className="plain-fieldset sequencer">
       <legend>Sequencer</legend>
       <div className="sequencer-controls">
-        <label className="sequencer-toggle">
-          <input
-            checked={sequence.enabled}
-            onChange={(event) =>
-              onChange((current) =>
-                setSequenceEnabled(current, event.target.checked),
-              )
-            }
-            type="checkbox"
-          />
-          On
-        </label>
-        <label className="sequencer-toggle">
-          <input
-            checked={recording}
-            onChange={(event) => onRecordingChange(event.target.checked)}
-            type="checkbox"
-          />
-          Record
-        </label>
         <div className="sequencer-step-control">
           <span id="sequencer-step-label">Steps</span>
           <div
@@ -164,6 +144,26 @@ export function SequencerPanel({
         >
           Clear
         </button>
+        <div className="sequencer-action-buttons">
+          <button
+            aria-pressed={sequence.enabled}
+            onClick={() =>
+              onChange((current) =>
+                setSequenceEnabled(current, !current.enabled),
+              )
+            }
+            type="button"
+          >
+            On
+          </button>
+          <button
+            aria-pressed={recording}
+            onClick={() => onRecordingChange(!recording)}
+            type="button"
+          >
+            Record
+          </button>
+        </div>
       </div>
       <div className="sequencer-grid-wrap">
         <table className="sequencer-grid" onPointerMove={movePaint}>
