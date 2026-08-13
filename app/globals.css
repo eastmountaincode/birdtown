@@ -334,10 +334,6 @@ legend {
   padding: 0;
 }
 
-.sequencer-action-buttons button[aria-pressed="true"] {
-  border-style: inset;
-}
-
 .sequencer-grid-wrap {
   width: 100%;
   margin-top: 0.75rem;

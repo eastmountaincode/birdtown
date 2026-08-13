@@ -154,7 +154,7 @@ export function SequencerPanel({
             }
             type="button"
           >
-            On
+            {sequence.enabled ? "On" : "Off"}
           </button>
           <button
             aria-pressed={recording}
