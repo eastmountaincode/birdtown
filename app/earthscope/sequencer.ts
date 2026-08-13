@@ -127,6 +127,31 @@ export function clearSequence(sequence: MelodicSequence): MelodicSequence {
   };
 }
 
+export function canTransposeSequence(
+  sequence: MelodicSequence,
+  semitones: number,
+) {
+  const notes = sequence.notes.filter((note) => note !== null);
+  return (
+    notes.length > 0 &&
+    Number.isInteger(semitones) &&
+    notes.every((note) => isSequencerNote(note + semitones))
+  );
+}
+
+export function transposeSequence(
+  sequence: MelodicSequence,
+  semitones: number,
+): MelodicSequence {
+  if (!canTransposeSequence(sequence, semitones)) return sequence;
+  return {
+    ...sequence,
+    notes: sequence.notes.map((note) =>
+      note === null ? null : note + semitones,
+    ),
+  };
+}
+
 export function sequencerNotesForOctave(octave: SequencerOctave) {
   const firstNote = (octave + 1) * 12;
   const lastNote = Math.min(firstNote + 11, SEQUENCER_MAX_NOTE);

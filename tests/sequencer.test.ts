@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  canTransposeSequence,
   clearSequence,
   DEFAULT_SEQUENCE,
   setSequenceEnabled,
@@ -13,6 +14,7 @@ import {
   setSequenceLength,
   setSequenceNote,
   toggleSequenceNote,
+  transposeSequence,
 } from "../app/earthscope/sequencer";
 
 describe("melodic sequencer", () => {
@@ -67,6 +69,28 @@ describe("melodic sequencer", () => {
     expect(clearSequence(programmed).notes.every((note) => note === null)).toBe(
       true,
     );
+  });
+
+  test("moves every stored step up or down one octave", () => {
+    const withVisibleNote = setSequenceNote(DEFAULT_SEQUENCE, 0, 36);
+    const withHiddenNote = setSequenceNote(withVisibleNote, 35, 47);
+    const movedUp = transposeSequence(withHiddenNote, 12);
+    const movedDown = transposeSequence(movedUp, -12);
+
+    expect(movedUp.notes[0]).toBe(48);
+    expect(movedUp.notes[35]).toBe(59);
+    expect(movedDown.notes).toEqual(withHiddenNote.notes);
+  });
+
+  test("keeps the whole pattern unchanged at the pitch limits", () => {
+    const atCeiling = setSequenceNote(DEFAULT_SEQUENCE, 0, 72);
+    const atFloor = setSequenceNote(DEFAULT_SEQUENCE, 0, 24);
+
+    expect(canTransposeSequence(DEFAULT_SEQUENCE, 12)).toBe(false);
+    expect(canTransposeSequence(atCeiling, 12)).toBe(false);
+    expect(transposeSequence(atCeiling, 12)).toBe(atCeiling);
+    expect(canTransposeSequence(atFloor, -12)).toBe(false);
+    expect(transposeSequence(atFloor, -12)).toBe(atFloor);
   });
 
   test("renders complete chromatic octaves through the C5 ceiling", () => {

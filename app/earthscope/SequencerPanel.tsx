@@ -8,6 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  canTransposeSequence,
   clearSequence,
   SEQUENCE_LENGTHS,
   SEQUENCER_OCTAVES,
@@ -17,6 +18,7 @@ import {
   setSequenceLength,
   setSequenceNote,
   toggleSequenceNote,
+  transposeSequence,
   type MelodicSequence,
   type SequencerOctave,
 } from "./sequencer";
@@ -136,6 +138,28 @@ export function SequencerPanel({
               </label>
             ))}
           </div>
+        </div>
+        <div className="sequencer-transpose-buttons">
+          <button
+            aria-label="Octave down"
+            disabled={!canTransposeSequence(sequence, -12)}
+            onClick={() =>
+              onChange((current) => transposeSequence(current, -12))
+            }
+            type="button"
+          >
+            ↓
+          </button>
+          <button
+            aria-label="Octave up"
+            disabled={!canTransposeSequence(sequence, 12)}
+            onClick={() =>
+              onChange((current) => transposeSequence(current, 12))
+            }
+            type="button"
+          >
+            ↑
+          </button>
         </div>
         <button
           disabled={!sequence.notes.some((note) => note !== null)}
