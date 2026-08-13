@@ -298,8 +298,10 @@ legend {
 .sequencer-step-control,
 .sequencer-step-options,
 .sequencer-step-options label,
-.sequencer-toggle,
-.sequencer-octave-control {
+.sequencer-octave-control,
+.sequencer-octave-options,
+.sequencer-octave-options label,
+.sequencer-toggle {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -310,11 +312,13 @@ legend {
   gap: 0.6rem;
 }
 
-.sequencer-step-options {
+.sequencer-step-options,
+.sequencer-octave-options {
   gap: 0.75rem;
 }
 
-.sequencer-step-options label {
+.sequencer-step-options label,
+.sequencer-octave-options label {
   cursor: pointer;
 }
 
@@ -323,21 +327,11 @@ legend {
 }
 
 .sequencer-step-options input,
+.sequencer-octave-options input,
 .sequencer-toggle input {
   min-height: auto;
   margin: 0;
   padding: 0;
-}
-
-.sequencer-octave-control input {
-  width: 10rem;
-}
-
-.sequencer-octave-control output {
-  min-width: 1ch;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 0.85rem;
-  text-align: right;
 }
 
 .sequencer-grid-wrap {

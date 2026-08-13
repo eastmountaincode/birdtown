@@ -137,21 +137,26 @@ export function SequencerPanel({
             ))}
           </div>
         </div>
-        <label className="sequencer-octave-control">
-          Octave
-          <input
-            aria-valuetext={`Octave ${octave}`}
-            max={SEQUENCER_OCTAVES.at(-1)}
-            min={SEQUENCER_OCTAVES[0]}
-            onChange={(event) =>
-              setOctave(Number(event.target.value) as SequencerOctave)
-            }
-            step={1}
-            type="range"
-            value={octave}
-          />
-          <output>{octave}</output>
-        </label>
+        <div className="sequencer-octave-control">
+          <span id="sequencer-octave-label">Octave</span>
+          <div
+            aria-labelledby="sequencer-octave-label"
+            className="sequencer-octave-options"
+            role="radiogroup"
+          >
+            {SEQUENCER_OCTAVES.map((value) => (
+              <label key={value}>
+                <input
+                  checked={octave === value}
+                  name="sequencer-octave"
+                  onChange={() => setOctave(value)}
+                  type="radio"
+                />
+                {value}
+              </label>
+            ))}
+          </div>
+        </div>
         <button
           disabled={!sequence.notes.some((note) => note !== null)}
           onClick={() => onChange(clearSequence)}
