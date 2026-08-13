@@ -11,6 +11,7 @@ export function useSeismicAudio({
   controls,
   gateOpen,
   lowPassLfo,
+  midiOverrideActive,
   sampleRate,
   samples,
   sequence,
@@ -20,6 +21,7 @@ export function useSeismicAudio({
   controls: VoiceControls;
   gateOpen: boolean;
   lowPassLfo: LowPassLfoSettings;
+  midiOverrideActive: boolean;
   sampleRate: number;
   samples: number[];
   sequence: MelodicSequence;
@@ -34,6 +36,7 @@ export function useSeismicAudio({
   const gateOpenRef = useRef(gateOpen);
   const lowPassLfoRef = useRef(lowPassLfo);
   const meterTimerRef = useRef(0);
+  const midiOverrideActiveRef = useRef(midiOverrideActive);
   const outputDeviceIdRef = useRef("");
   const outputChannelRef = useRef<AudioOutputChannel>("stereo");
   const pitchBendRatioRef = useRef(1);
@@ -71,6 +74,15 @@ export function useSeismicAudio({
   useEffect(() => {
     setGateOpen(gateOpen);
   }, [gateOpen, setGateOpen]);
+
+  const setMidiOverrideActive = useCallback((active: boolean) => {
+    midiOverrideActiveRef.current = active;
+    audioRef.current?.setMidiOverrideActive(active);
+  }, []);
+
+  useEffect(() => {
+    setMidiOverrideActive(midiOverrideActive);
+  }, [midiOverrideActive, setMidiOverrideActive]);
 
   useEffect(() => {
     rateRef.current = sampleRate;
@@ -145,6 +157,7 @@ export function useSeismicAudio({
       }
       audioRef.current = audio;
       audio.setGateOpen(gateOpenRef.current);
+      audio.setMidiOverrideActive(midiOverrideActiveRef.current);
       audio.setPitchBendRatio(pitchBendRatioRef.current);
       setPlaying(true);
       meterTimerRef.current = window.setInterval(() => {
@@ -179,6 +192,7 @@ export function useSeismicAudio({
     level,
     playing,
     setGateOpen,
+    setMidiOverrideActive,
     setOutputDevice,
     setOutputChannel,
     setPitchBendRatio,

@@ -44,6 +44,7 @@ export function SeismicInstrument() {
     controls,
     gateOpen: voiceGateOpen(latchEnabled, hasHeldMidiKeys),
     lowPassLfo,
+    midiOverrideActive: hasHeldMidiKeys,
     sampleRate: signal.sampleRate,
     samples: signal.samples,
     sequence: sequencer.sequence,
@@ -55,15 +56,17 @@ export function SeismicInstrument() {
     audio.setOutputChannel,
   );
   const setAudioGateOpen = audio.setGateOpen;
+  const setMidiOverrideActive = audio.setMidiOverrideActive;
   const changeHeldKeys = useCallback(
     (hasHeldKeys: boolean) => {
       hasHeldMidiKeysRef.current = hasHeldKeys;
+      setMidiOverrideActive(hasHeldKeys);
       setAudioGateOpen(
         voiceGateOpen(latchEnabledRef.current, hasHeldKeys),
       );
       setHasHeldMidiKeys(hasHeldKeys);
     },
-    [setAudioGateOpen],
+    [setAudioGateOpen, setMidiOverrideActive],
   );
   const midi = useMidiControls({
     controls,

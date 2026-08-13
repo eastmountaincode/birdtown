@@ -25,7 +25,7 @@ import {
   setAudioContextOutput,
   type AudioOutputChannel,
 } from "./audioOutput";
-import { sourceGateOpen } from "./voiceGate";
+import { sequenceControlsVoice, sourceGateOpen } from "./voiceGate";
 
 export interface SignalSource {
   sampleRate: number;
@@ -37,6 +37,7 @@ export interface SeismicAudioEngine {
   setOutputDevice: (deviceId: string) => Promise<void>;
   setOutputChannel: (channel: AudioOutputChannel) => void;
   setGateOpen: (open: boolean) => void;
+  setMidiOverrideActive: (active: boolean) => void;
   setPitchBendRatio: (ratio: number) => void;
   setRepeatsPerSecond: (value: number) => void;
   setSequence: (
@@ -206,6 +207,7 @@ export async function startSeismicAudio(
   let activeSampleRate = current.sampleRate;
   let activeSampleCount = initialValues.length;
   let manualRepeatRate = controls.repeatsPerSecond;
+  let midiOverrideActive = false;
   let sequence = initialSequence;
   let sequenceTransport = initialSequenceTransport;
   let sequenceStartAt = context.currentTime;
@@ -223,6 +225,9 @@ export async function startSeismicAudio(
     sequence.enabled &&
     sequenceTransport.running &&
     sequenceHasNotes(sequence);
+
+  const sequenceOwnsVoice = () =>
+    sequenceControlsVoice(sequenceIsRunning(), midiOverrideActive);
 
   const connectRepeatRate = (
     source: AudioBufferSourceNode,
@@ -246,7 +251,7 @@ export async function startSeismicAudio(
       : null;
 
   const repeatRateAt = (now: number) => {
-    if (!sequenceIsRunning()) {
+    if (!sequenceOwnsVoice()) {
       return effectiveRepeatRate(manualRepeatRate);
     }
     const step = currentSequenceStep(now) ?? 0;
@@ -317,6 +322,15 @@ export async function startSeismicAudio(
       startAt: sequenceStartAt,
       tempoBpm: scheduledTempoBpm,
     });
+
+    if (midiOverrideActive) {
+      sequenceScheduledUntil = 0;
+      repeatRateSignal.offset.setValueAtTime(manualRepeatRate, now);
+      sequenceGate.gain.setTargetAtTime(1, now, 0.006);
+      activeRepeats = effectiveRepeatRate(manualRepeatRate);
+      return;
+    }
+
     const currentNote = sequence.notes[position.step] ?? null;
     repeatRateSignal.offset.setValueAtTime(
       sequenceRateAtStep(sequence, position.step, manualRepeatRate),
@@ -359,7 +373,7 @@ export async function startSeismicAudio(
     manualRepeatRate = Number.isFinite(repeatsPerSecond)
       ? Math.max(0.000001, repeatsPerSecond)
       : manualRepeatRate;
-    if (sequenceIsRunning()) return;
+    if (sequenceOwnsVoice()) return;
     activeRepeats = effectiveRepeatRate(manualRepeatRate);
     repeatRateSignal.offset.cancelScheduledValues(now);
     if (smooth) {
@@ -384,7 +398,7 @@ export async function startSeismicAudio(
     if (nextTempoBpm !== scheduledTempoBpm) {
       scheduleSequence(sequence, nextTempoBpm, sequenceTransport, now);
     } else if (
-      sequenceIsRunning() &&
+      sequenceOwnsVoice() &&
       sequenceScheduledUntil - now < SEQUENCE_REFILL_MARGIN_SECONDS
     ) {
       scheduleSequence(sequence, scheduledTempoBpm, sequenceTransport, now);
@@ -460,6 +474,13 @@ export async function startSeismicAudio(
         now,
         0.006,
       );
+    },
+    setMidiOverrideActive: (active) => {
+      if (active === midiOverrideActive) return;
+      const now = context.currentTime;
+      updatePhase(now);
+      midiOverrideActive = active;
+      scheduleSequence(sequence, scheduledTempoBpm, sequenceTransport, now);
     },
     setPitchBendRatio: (ratio) => {
       const now = context.currentTime;

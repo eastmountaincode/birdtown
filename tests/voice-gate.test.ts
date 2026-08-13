@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  sequenceControlsVoice,
   sourceGateOpen,
   voiceGateOpen,
 } from "../app/earthscope/voiceGate";
@@ -58,6 +59,36 @@ describe("voice gate", () => {
     "keeps the source gate $open when manual=$manualGateOpen and sequencer=$sequencerRunning",
     ({ manualGateOpen, open, sequencerRunning }) => {
       expect(sourceGateOpen(manualGateOpen, sequencerRunning)).toBe(open);
+    },
+  );
+
+  test.each([
+    {
+      midiOverrideActive: false,
+      ownsVoice: false,
+      sequencerRunning: false,
+    },
+    {
+      midiOverrideActive: true,
+      ownsVoice: false,
+      sequencerRunning: false,
+    },
+    {
+      midiOverrideActive: false,
+      ownsVoice: true,
+      sequencerRunning: true,
+    },
+    {
+      midiOverrideActive: true,
+      ownsVoice: false,
+      sequencerRunning: true,
+    },
+  ])(
+    "gives the sequencer voice ownership=$ownsVoice when running=$sequencerRunning and MIDI override=$midiOverrideActive",
+    ({ midiOverrideActive, ownsVoice, sequencerRunning }) => {
+      expect(
+        sequenceControlsVoice(sequencerRunning, midiOverrideActive),
+      ).toBe(ownsVoice);
     },
   );
 });

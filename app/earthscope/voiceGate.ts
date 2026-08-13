@@ -11,3 +11,10 @@ export function sourceGateOpen(
 ) {
   return manualGateOpen || sequencerRunning;
 }
+
+export function sequenceControlsVoice(
+  sequencerRunning: boolean,
+  midiOverrideActive: boolean,
+) {
+  return sequencerRunning && !midiOverrideActive;
+}
