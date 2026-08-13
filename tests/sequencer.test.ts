@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   clearSequence,
   DEFAULT_SEQUENCE,
+  setSequenceEnabled,
   sequenceHasNotes,
   sequencePositionAtTime,
   sequenceRateAtStep,
@@ -10,14 +11,35 @@ import {
   sequencerNotesForOctave,
   sequencerRepeatRate,
   setSequenceLength,
+  setSequenceNote,
   toggleSequenceNote,
 } from "../app/earthscope/sequencer";
 
 describe("melodic sequencer", () => {
   test("starts as an empty 16-step sequence", () => {
+    expect(DEFAULT_SEQUENCE.enabled).toBe(true);
     expect(DEFAULT_SEQUENCE.length).toBe(16);
     expect(DEFAULT_SEQUENCE.notes).toHaveLength(36);
     expect(sequenceHasNotes(DEFAULT_SEQUENCE)).toBe(false);
+  });
+
+  test("turns playback on and off without clearing the pattern", () => {
+    const programmed = setSequenceNote(DEFAULT_SEQUENCE, 3, 36);
+    const disabled = setSequenceEnabled(programmed, false);
+
+    expect(disabled.enabled).toBe(false);
+    expect(disabled.notes[3]).toBe(36);
+    expect(setSequenceEnabled(disabled, true).enabled).toBe(true);
+  });
+
+  test("draws or erases a specific cell without toggling", () => {
+    const drawn = setSequenceNote(DEFAULT_SEQUENCE, 2, 40);
+    const same = setSequenceNote(drawn, 2, 40);
+    const erased = setSequenceNote(drawn, 2, null);
+
+    expect(drawn.notes[2]).toBe(40);
+    expect(same).toBe(drawn);
+    expect(erased.notes[2]).toBeNull();
   });
 
   test("keeps one note or rest in each step", () => {

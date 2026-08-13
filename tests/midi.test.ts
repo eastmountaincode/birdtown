@@ -8,6 +8,7 @@ import {
 import {
   applyMidiControl,
   decodeRelativeMidiValue,
+  instrumentNoteForMidiNote,
   listMidiInputSelections,
   listMidiInputs,
   midiInputFingerprint,
@@ -246,6 +247,8 @@ describe("MPK mini controls", () => {
   });
 
   test("preserves the centered bass range and extends octave-up to C5", () => {
+    expect(instrumentNoteForMidiNote(60)).toBe(24);
+    expect(instrumentNoteForMidiNote(108)).toBe(72);
     expect(repeatRateForMidiNote(48)).toBeCloseTo(16.3515978);
     expect(repeatRateForMidiNote(60)).toBeCloseTo(32.7031957);
     expect(repeatRateForMidiNote(69)).toBeCloseTo(55);

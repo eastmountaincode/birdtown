@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Purpose
 
-A browser bass voice whose only audible source is a controllable-length loop from the live EarthScope waveform at `CO.BIRD.00.HHZ` at 100 Hz. The user controls both samples per loop and repeats per second. Sequencing belongs in Cicada or another external transport.
+A browser bass voice whose only audible source is a controllable-length loop from the live EarthScope waveform at `CO.BIRD.00.HHZ` at 100 Hz. The user controls both samples per loop and repeats per second. Birdtown can play live, follow an external sequencer, or use its minimal internal melodic sequencer.
 
 ## Constraints
 
@@ -23,6 +23,8 @@ A browser bass voice whose only audible source is a controllable-length loop fro
 - Keep `MIDIAccess` alive across device changes, rescan on topology changes, and distinguish an open port from one that has actually delivered knob data.
 - Relative MIDI should follow each control's perceptual scale. Sample count and repeat rate use fine logarithmic movement; cutoff, resonance, and volume use the fixed additive steps in `app/earthscope/controls.ts`.
 - Latch defaults on. When latch is off, playable MIDI keys gate the output without stopping the live seismic loop, EarthScope updates, or MIDI connections.
+- Keep the internal clock running while Birdtown is open. Sequencer On controls whether the pattern drives the voice; it does not start or stop the clock.
+- Keep the internal sequencer monophonic. MIDI recording and pointer painting may replace the note in a step, but must not introduce a second audio voice or non-seismic sound source.
 - Keep the interface close to the semantic, native-control style used by `eastmountaincode/htmlmusic`. Avoid decorative cards, subtitles, tooltips, and implementation copy.
 
 ## Modules
@@ -30,10 +32,14 @@ A browser bass voice whose only audible source is a controllable-length loop fro
 - `useDataLink.ts`: EarthScope connection and packet continuity.
 - `useMidiControls.ts`: Web MIDI connection lifecycle.
 - `midi.ts`: pure MIDI decoding and control mapping.
+- `sequencer.ts`: pure pattern, pitch, and clock-position logic.
+- `SequencerPanel.tsx`: grid editing and record controls.
+- `useSequencerPlayhead.ts`: continuously derived clock position.
+- `useMelodicSequencer.ts`: pattern state and quantized MIDI recording.
 - `useSeismicAudio.ts`: React playback state and lifecycle.
 - `audioEngine.ts`: Web Audio graph and live-loop refresh.
 - `SeismicInstrument.tsx`: interface composition only.
 
 ## Verification
 
-Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`, then verify `/` and `/earthscope/steps`, live packet arrival, start/stop, sustained playback, control changes, and absence of runtime overlays.
+Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`, then verify `/` and `/earthscope/steps`, live packet arrival, start/stop, sustained playback, control changes, sequencer On/Record, MIDI note recording, pointer draw/erase, and absence of runtime overlays.

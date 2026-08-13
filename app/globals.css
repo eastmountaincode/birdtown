@@ -279,6 +279,10 @@ legend {
   justify-self: end;
 }
 
+.clock-output-row {
+  grid-template-columns: 10rem minmax(0, 1fr);
+}
+
 .clock-error {
   margin: 0;
   color: #b00000;
@@ -294,6 +298,7 @@ legend {
 .sequencer-step-control,
 .sequencer-step-options,
 .sequencer-step-options label,
+.sequencer-toggle,
 .sequencer-octave-control {
   display: flex;
   align-items: center;
@@ -313,7 +318,12 @@ legend {
   cursor: pointer;
 }
 
-.sequencer-step-options input {
+.sequencer-toggle {
+  cursor: pointer;
+}
+
+.sequencer-step-options input,
+.sequencer-toggle input {
   min-height: auto;
   margin: 0;
   padding: 0;
@@ -343,6 +353,7 @@ legend {
   font-family: "Courier New", Courier, monospace;
   font-size: 0.7rem;
   line-height: 1;
+  user-select: none;
 }
 
 .sequencer-grid th {
@@ -372,6 +383,7 @@ legend {
   padding: 0;
   border-radius: 2px;
   background: #ffffff;
+  touch-action: none;
 }
 
 .sequencer-grid button[aria-pressed="true"] {

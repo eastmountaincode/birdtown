@@ -1,11 +1,21 @@
-import { useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
+} from "react";
 import {
   clearSequence,
   SEQUENCE_LENGTHS,
   SEQUENCER_OCTAVES,
   sequencerNoteName,
   sequencerNotesForOctave,
+  setSequenceEnabled,
   setSequenceLength,
+  setSequenceNote,
   toggleSequenceNote,
   type MelodicSequence,
   type SequencerOctave,
@@ -14,19 +24,95 @@ import {
 export function SequencerPanel({
   activeStep,
   onChange,
+  onRecordingChange,
+  recording,
   sequence,
 }: {
   activeStep: number | null;
-  onChange: (sequence: MelodicSequence) => void;
+  onChange: Dispatch<SetStateAction<MelodicSequence>>;
+  onRecordingChange: (recording: boolean) => void;
+  recording: boolean;
   sequence: MelodicSequence;
 }) {
   const [octave, setOctave] = useState<SequencerOctave>(2);
+  const paintRef = useRef<{
+    mode: "draw" | "erase";
+    pointerId: number;
+    visited: Set<string>;
+  } | null>(null);
   const visibleNotes = sequencerNotesForOctave(octave);
+
+  useEffect(() => {
+    const finishPaint = (event: PointerEvent) => {
+      if (paintRef.current?.pointerId === event.pointerId) {
+        paintRef.current = null;
+      }
+    };
+    window.addEventListener("pointerup", finishPaint);
+    window.addEventListener("pointercancel", finishPaint);
+    return () => {
+      window.removeEventListener("pointerup", finishPaint);
+      window.removeEventListener("pointercancel", finishPaint);
+    };
+  }, []);
+
+  const paintCell = useCallback(
+    (step: number, note: number) => {
+      const paint = paintRef.current;
+      if (!paint) return;
+      const key = `${step}:${note}`;
+      if (paint.visited.has(key)) return;
+      paint.visited.add(key);
+      onChange((current) =>
+        setSequenceNote(
+          current,
+          step,
+          paint.mode === "erase" ? null : note,
+        ),
+      );
+    },
+    [onChange],
+  );
+
+  const movePaint = (event: ReactPointerEvent<HTMLTableElement>) => {
+    const paint = paintRef.current;
+    if (!paint || paint.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const target = document.elementFromPoint(event.clientX, event.clientY);
+    const button = target?.closest<HTMLButtonElement>(
+      "button[data-sequencer-note]",
+    );
+    if (!button || !event.currentTarget.contains(button)) return;
+    paintCell(
+      Number(button.dataset.sequencerStep),
+      Number(button.dataset.sequencerNote),
+    );
+  };
 
   return (
     <fieldset className="plain-fieldset sequencer">
       <legend>Sequencer</legend>
       <div className="sequencer-controls">
+        <label className="sequencer-toggle">
+          <input
+            checked={sequence.enabled}
+            onChange={(event) =>
+              onChange((current) =>
+                setSequenceEnabled(current, event.target.checked),
+              )
+            }
+            type="checkbox"
+          />
+          On
+        </label>
+        <label className="sequencer-toggle">
+          <input
+            checked={recording}
+            onChange={(event) => onRecordingChange(event.target.checked)}
+            type="checkbox"
+          />
+          Record
+        </label>
         <div className="sequencer-step-control">
           <span id="sequencer-step-label">Steps</span>
           <div
@@ -40,7 +126,9 @@ export function SequencerPanel({
                   checked={sequence.length === length}
                   name="sequencer-steps"
                   onChange={() =>
-                    onChange(setSequenceLength(sequence, length))
+                    onChange((current) =>
+                      setSequenceLength(current, length),
+                    )
                   }
                   type="radio"
                 />
@@ -66,14 +154,14 @@ export function SequencerPanel({
         </label>
         <button
           disabled={!sequence.notes.some((note) => note !== null)}
-          onClick={() => onChange(clearSequence(sequence))}
+          onClick={() => onChange(clearSequence)}
           type="button"
         >
           Clear
         </button>
       </div>
       <div className="sequencer-grid-wrap">
-        <table className="sequencer-grid">
+        <table className="sequencer-grid" onPointerMove={movePaint}>
           <thead>
             <tr>
               <th aria-label="Note" />
@@ -102,9 +190,25 @@ export function SequencerPanel({
                           aria-label={`${noteName}, step ${step + 1}`}
                           aria-pressed={selected}
                           className={activeStep === step ? "is-current" : undefined}
-                          onClick={() =>
-                            onChange(toggleSequenceNote(sequence, step, note))
-                          }
+                          data-sequencer-note={note}
+                          data-sequencer-step={step}
+                          onClick={(event) => {
+                            if (event.detail === 0) {
+                              onChange((current) =>
+                                toggleSequenceNote(current, step, note),
+                              );
+                            }
+                          }}
+                          onPointerDown={(event) => {
+                            if (!event.isPrimary || event.button !== 0) return;
+                            event.preventDefault();
+                            paintRef.current = {
+                              mode: selected ? "erase" : "draw",
+                              pointerId: event.pointerId,
+                              visited: new Set(),
+                            };
+                            paintCell(step, note);
+                          }}
                           type="button"
                         />
                       </td>

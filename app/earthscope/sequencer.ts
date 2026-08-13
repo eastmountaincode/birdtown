@@ -10,6 +10,7 @@ export type SequenceLength = (typeof SEQUENCE_LENGTHS)[number];
 export type SequencerOctave = (typeof SEQUENCER_OCTAVES)[number];
 
 export interface MelodicSequence {
+  enabled: boolean;
   length: SequenceLength;
   notes: readonly (number | null)[];
 }
@@ -40,6 +41,7 @@ const NOTE_NAMES = [
 ] as const;
 
 export const DEFAULT_SEQUENCE: MelodicSequence = {
+  enabled: true,
   length: 16,
   notes: Array<number | null>(MAX_SEQUENCE_STEPS).fill(null),
 };
@@ -59,6 +61,21 @@ export function sequenceHasNotes(sequence: MelodicSequence) {
     .some((note) => note !== null);
 }
 
+export function isSequencerNote(note: number) {
+  return (
+    Number.isInteger(note) &&
+    note >= SEQUENCER_MIN_NOTE &&
+    note <= SEQUENCER_MAX_NOTE
+  );
+}
+
+export function setSequenceEnabled(
+  sequence: MelodicSequence,
+  enabled: boolean,
+): MelodicSequence {
+  return sequence.enabled === enabled ? sequence : { ...sequence, enabled };
+}
+
 export function setSequenceLength(
   sequence: MelodicSequence,
   length: SequenceLength,
@@ -71,22 +88,34 @@ export function toggleSequenceNote(
   step: number,
   note: number,
 ): MelodicSequence {
+  return setSequenceNote(
+    sequence,
+    step,
+    sequence.notes[step] === note ? null : note,
+  );
+}
+
+export function setSequenceNote(
+  sequence: MelodicSequence,
+  step: number,
+  note: number | null,
+): MelodicSequence {
   if (
     !Number.isInteger(step) ||
     step < 0 ||
     step >= MAX_SEQUENCE_STEPS ||
-    !Number.isInteger(note) ||
-    note < SEQUENCER_MIN_NOTE ||
-    note > SEQUENCER_MAX_NOTE
+    (note !== null && !isSequencerNote(note))
   ) {
     return sequence;
   }
+
+  if ((sequence.notes[step] ?? null) === note) return sequence;
 
   const notes = Array.from(
     { length: MAX_SEQUENCE_STEPS },
     (_, index) => sequence.notes[index] ?? null,
   );
-  notes[step] = notes[step] === note ? null : note;
+  notes[step] = note;
   return { ...sequence, notes };
 }
 

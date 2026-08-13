@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EARTHSCOPE_STATION } from "../lib/earthScopeConfig";
 import { useEarthScope } from "../lib/useDataLink";
 import {
@@ -19,11 +19,8 @@ import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { SequencerPanel } from "./SequencerPanel";
-import {
-  DEFAULT_SEQUENCE,
-  STOPPED_SEQUENCER_TRANSPORT,
-} from "./sequencer";
 import { clampTempo, DEFAULT_TEMPO } from "./tempo";
+import { useMelodicSequencer } from "./useMelodicSequencer";
 import { useMidiClock } from "./useMidiClock";
 import { useMidiControls } from "./useMidiControls";
 import { useSeismicAudio } from "./useSeismicAudio";
@@ -42,24 +39,15 @@ export function SeismicInstrument() {
   const latchEnabledRef = useRef(true);
   const [lowPassLfo, setLowPassLfo] = useState(DEFAULT_LOW_PASS_LFO);
   const [tempoBpm, setTempoBpm] = useState(DEFAULT_TEMPO);
-  const [sequence, setSequence] = useState(DEFAULT_SEQUENCE);
-  const [sequenceTransport, setSequenceTransport] = useState(
-    STOPPED_SEQUENCER_TRANSPORT,
-  );
-  const changeSequenceTransport = useCallback(
-    (running: boolean, startedAtMs: number | null) => {
-      setSequenceTransport({ running, startedAtMs });
-    },
-    [],
-  );
+  const sequencer = useMelodicSequencer(tempoBpm);
   const audio = useSeismicAudio({
     controls,
     gateOpen: voiceGateOpen(latchEnabled, hasHeldMidiKeys),
     lowPassLfo,
     sampleRate: signal.sampleRate,
     samples: signal.samples,
-    sequence,
-    sequenceTransport,
+    sequence: sequencer.sequence,
+    sequenceTransport: sequencer.transport,
     tempoBpm,
   });
   const audioOutput = useAudioOutput(
@@ -79,6 +67,7 @@ export function SeismicInstrument() {
   );
   const midi = useMidiControls({
     controls,
+    onActiveNoteChange: sequencer.setActiveMidiNote,
     onHeldKeysChange: changeHeldKeys,
     setControls,
     setPitchBendRatio: audio.setPitchBendRatio,
@@ -86,9 +75,16 @@ export function SeismicInstrument() {
   });
   const midiClock = useMidiClock({
     access: midi.midiAccess,
-    onTransportChange: changeSequenceTransport,
+    onTransportChange: sequencer.setClockTransport,
     tempoBpm,
   });
+  const startMidiClock = midiClock.start;
+  const stopMidiClock = midiClock.stop;
+
+  useEffect(() => {
+    void startMidiClock();
+    return stopMidiClock;
+  }, [startMidiClock, stopMidiClock]);
 
   const changeControl = useCallback(
     (key: VoiceControlKey, value: number) => {
@@ -168,9 +164,11 @@ export function SeismicInstrument() {
             tempoBpm={tempoBpm}
           />
           <SequencerPanel
-            activeStep={audio.sequenceStep}
-            onChange={setSequence}
-            sequence={sequence}
+            activeStep={sequencer.activeStep}
+            onChange={sequencer.setSequence}
+            onRecordingChange={sequencer.setRecording}
+            recording={sequencer.recording}
+            sequence={sequencer.sequence}
           />
           <MidiPanel
             connect={midi.connect}
@@ -182,17 +180,12 @@ export function SeismicInstrument() {
             selectedInputKey={midi.selectedInputKey}
           />
           <ClockPanel
-            canStart={midiClock.canStart}
             connected={midi.midiAccess !== null}
             error={midiClock.error}
             onOutputChange={midiClock.selectOutput}
-            onStart={midiClock.start}
-            onStop={midiClock.stop}
             onTempoChange={changeTempo}
             outputs={midiClock.outputs}
-            running={midiClock.running}
             selectedOutputIds={midiClock.selectedOutputIds}
-            starting={midiClock.starting}
             tempoBpm={tempoBpm}
           />
           <SettingsPanel

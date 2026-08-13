@@ -306,9 +306,13 @@ export function pitchBendRatio(
   return Math.pow(2, (normalized * finiteRange) / 12);
 }
 
-export function repeatRateForMidiNote(note: number) {
+export function instrumentNoteForMidiNote(note: number) {
   const finiteNote = Number.isFinite(note) ? note : 0;
-  const transposedNote = finiteNote + MIDI_KEY_TRANSPOSE_SEMITONES;
+  return Math.round(finiteNote) + MIDI_KEY_TRANSPOSE_SEMITONES;
+}
+
+export function repeatRateForMidiNote(note: number) {
+  const transposedNote = instrumentNoteForMidiNote(note);
   return 440 * Math.pow(2, (transposedNote - 69) / 12);
 }
 

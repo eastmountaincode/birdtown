@@ -3,30 +3,20 @@ import { RangeControl } from "./RangeControl";
 import { TEMPO_MAX, TEMPO_MIN } from "./tempo";
 
 export function ClockPanel({
-  canStart,
   connected,
   error,
   onOutputChange,
-  onStart,
-  onStop,
   onTempoChange,
   outputs,
-  running,
   selectedOutputIds,
-  starting,
   tempoBpm,
 }: {
-  canStart: boolean;
   connected: boolean;
   error: string | null;
   onOutputChange: (outputId: string, selected: boolean) => void;
-  onStart: () => Promise<void>;
-  onStop: () => void;
   onTempoChange: (tempoBpm: number) => void;
   outputs: MidiClockOutputOption[];
-  running: boolean;
   selectedOutputIds: string[];
-  starting: boolean;
   tempoBpm: number;
 }) {
   const selected = new Set(selectedOutputIds);
@@ -73,15 +63,6 @@ export function ClockPanel({
               ))
             )}
           </div>
-          <button
-            disabled={
-              starting || (!running && !canStart)
-            }
-            onClick={() => (running ? onStop() : void onStart())}
-            type="button"
-          >
-            {starting ? "Starting..." : running ? "Stop" : "Start"}
-          </button>
         </div>
         {error ? (
           <p className="clock-error" role="alert">

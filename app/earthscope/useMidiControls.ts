@@ -55,12 +55,14 @@ function isMpkDawPort(input: MIDIInput) {
 
 export function useMidiControls({
   controls,
+  onActiveNoteChange,
   onHeldKeysChange,
   setControls,
   setPitchBendRatio,
   setRepeatsPerSecond,
 }: {
   controls: VoiceControls;
+  onActiveNoteChange: (note: number | null) => void;
   onHeldKeysChange: (hasHeldKeys: boolean) => void;
   setControls: Dispatch<SetStateAction<VoiceControls>>;
   setPitchBendRatio: (ratio: number) => void;
@@ -77,7 +79,9 @@ export function useMidiControls({
   const controlsRef = useRef(controls);
   const desiredInputsRef = useRef(new Map<string, MIDIInput>());
   const heldNotesRef = useRef<HeldMidiNote[]>([]);
+  const activeNoteRef = useRef<number | null>(null);
   const hasHeldKeysRef = useRef(false);
+  const onActiveNoteChangeRef = useRef(onActiveNoteChange);
   const onHeldKeysChangeRef = useRef(onHeldKeysChange);
   const pendingInputsRef = useRef(new Map<string, MIDIInput>());
   const pitchBendInputIdRef = useRef<string | null>(null);
@@ -88,6 +92,10 @@ export function useMidiControls({
   const topologyDirtyRef = useRef(false);
   const topologyRef = useRef("");
   const topologyTimerRef = useRef(0);
+
+  useEffect(() => {
+    onActiveNoteChangeRef.current = onActiveNoteChange;
+  }, [onActiveNoteChange]);
 
   useEffect(() => {
     onHeldKeysChangeRef.current = onHeldKeysChange;
@@ -139,6 +147,11 @@ export function useMidiControls({
 
   const setHeldNotes = useCallback((heldNotes: HeldMidiNote[]) => {
     heldNotesRef.current = heldNotes;
+    const activeNote = heldNotes.at(-1)?.note ?? null;
+    if (activeNote !== activeNoteRef.current) {
+      activeNoteRef.current = activeNote;
+      onActiveNoteChangeRef.current(activeNote);
+    }
     const hasHeldKeys = heldNotes.length > 0;
     if (hasHeldKeys === hasHeldKeysRef.current) return;
     hasHeldKeysRef.current = hasHeldKeys;

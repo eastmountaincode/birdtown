@@ -383,9 +383,6 @@ export function useMidiClock({
 
   const selectOutput = useCallback(
     (outputId: string, selected: boolean) => {
-      stopTransport();
-      void closeActiveOutputs();
-
       const missingFingerprint =
         missingOutputPreferencesRef.current.get(outputId);
       if (missingFingerprint) {
@@ -441,7 +438,7 @@ export function useMidiClock({
         ],
       }));
     },
-    [closeActiveOutputs, stopTransport],
+    [],
   );
 
   const performStart = useCallback(async () => {
@@ -557,6 +554,39 @@ export function useMidiClock({
     return attempt;
   }, [performStart]);
 
+  const stop = useCallback(() => {
+    stopTransport();
+    void closeActiveOutputs();
+  }, [closeActiveOutputs, stopTransport]);
+
+  const selectedOutputKey = state.selectedOutputIds.join("|");
+  const selectedOutputCount = state.selectedOutputIds.length;
+  useEffect(() => {
+    if (!access || !runningRef.current) return;
+    const currentSelection = new Set(
+      selectedOutputKey ? selectedOutputKey.split("|") : [],
+    );
+    const expectedSelection = new Set([
+      ...selectedOutputIdsRef.current,
+      ...missingOutputPreferencesRef.current.keys(),
+    ]);
+    if (
+      selectedOutputCount !== expectedSelection.size ||
+      [...currentSelection].some((id) => !expectedSelection.has(id))
+    ) {
+      return;
+    }
+    stopTransport(null, false);
+    void closeActiveOutputs().then(start);
+  }, [
+    access,
+    closeActiveOutputs,
+    selectedOutputCount,
+    selectedOutputKey,
+    start,
+    stopTransport,
+  ]);
+
   const canStart = true;
 
   return {
@@ -564,9 +594,6 @@ export function useMidiClock({
     canStart,
     selectOutput,
     start,
-    stop: () => {
-      stopTransport();
-      void closeActiveOutputs();
-    },
+    stop,
   };
 }

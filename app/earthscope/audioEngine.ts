@@ -32,7 +32,6 @@ export interface SignalSource {
 }
 
 export interface SeismicAudioEngine {
-  currentSequenceStep: () => number | null;
   measure: () => number;
   setOutputDevice: (deviceId: string) => Promise<void>;
   setOutputChannel: (channel: AudioOutputChannel) => void;
@@ -220,7 +219,9 @@ export async function startSeismicAudio(
     repeatsPerSecond * pitchBendRatio;
 
   const sequenceIsRunning = () =>
-    sequenceTransport.running && sequenceHasNotes(sequence);
+    sequence.enabled &&
+    sequenceTransport.running &&
+    sequenceHasNotes(sequence);
 
   const connectRepeatRate = (
     source: AudioBufferSourceNode,
@@ -432,7 +433,6 @@ export async function startSeismicAudio(
   const outputWaveform = new Float32Array(analyser.fftSize);
 
   return {
-    currentSequenceStep,
     measure: () => {
       analyser.getFloatTimeDomainData(outputWaveform);
       let energy = 0;
