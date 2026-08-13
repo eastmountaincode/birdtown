@@ -363,6 +363,10 @@ legend {
   text-align: center;
 }
 
+.sequencer-grid thead th:nth-child(4n + 2) {
+  font-weight: bold;
+}
+
 .sequencer-grid tbody th {
   padding-right: 0.25rem;
   text-align: right;
