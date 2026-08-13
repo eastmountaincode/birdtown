@@ -25,6 +25,7 @@ import {
   setAudioContextOutput,
   type AudioOutputChannel,
 } from "./audioOutput";
+import { sourceGateOpen } from "./voiceGate";
 
 export interface SignalSource {
   sampleRate: number;
@@ -284,9 +285,16 @@ export async function startSeismicAudio(
     sequenceTransport = nextTransport;
     scheduledTempoBpm = nextTempoBpm;
     repeatRateSignal.offset.cancelScheduledValues(now);
+    gate.gain.cancelScheduledValues(now);
     sequenceGate.gain.cancelScheduledValues(now);
+    const sequencerRunning = sequenceIsRunning();
+    gate.gain.setTargetAtTime(
+      sourceGateOpen(gateOpen, sequencerRunning) ? 1 : 0,
+      now,
+      0.006,
+    );
 
-    if (!sequenceIsRunning()) {
+    if (!sequencerRunning) {
       sequenceStartAt = now;
       sequenceScheduledUntil = 0;
       repeatRateSignal.offset.setValueAtTime(manualRepeatRate, now);
@@ -447,7 +455,11 @@ export async function startSeismicAudio(
       gateOpen = open;
       const now = context.currentTime;
       gate.gain.cancelScheduledValues(now);
-      gate.gain.setTargetAtTime(open ? 1 : 0, now, 0.006);
+      gate.gain.setTargetAtTime(
+        sourceGateOpen(gateOpen, sequenceIsRunning()) ? 1 : 0,
+        now,
+        0.006,
+      );
     },
     setPitchBendRatio: (ratio) => {
       const now = context.currentTime;

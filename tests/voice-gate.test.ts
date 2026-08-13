@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { voiceGateOpen } from "../app/earthscope/voiceGate";
+import {
+  sourceGateOpen,
+  voiceGateOpen,
+} from "../app/earthscope/voiceGate";
 
 describe("voice gate", () => {
   test.each([
@@ -27,6 +30,34 @@ describe("voice gate", () => {
     "is $open when latch=$latchEnabled and held keys=$hasHeldKeys",
     ({ hasHeldKeys, latchEnabled, open }) => {
       expect(voiceGateOpen(latchEnabled, hasHeldKeys)).toBe(open);
+    },
+  );
+
+  test.each([
+    {
+      manualGateOpen: false,
+      open: false,
+      sequencerRunning: false,
+    },
+    {
+      manualGateOpen: true,
+      open: true,
+      sequencerRunning: false,
+    },
+    {
+      manualGateOpen: false,
+      open: true,
+      sequencerRunning: true,
+    },
+    {
+      manualGateOpen: true,
+      open: true,
+      sequencerRunning: true,
+    },
+  ])(
+    "keeps the source gate $open when manual=$manualGateOpen and sequencer=$sequencerRunning",
+    ({ manualGateOpen, open, sequencerRunning }) => {
+      expect(sourceGateOpen(manualGateOpen, sequencerRunning)).toBe(open);
     },
   );
 });

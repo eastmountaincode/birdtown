@@ -4,3 +4,10 @@ export function voiceGateOpen(
 ) {
   return latchEnabled || hasHeldKeys;
 }
+
+export function sourceGateOpen(
+  manualGateOpen: boolean,
+  sequencerRunning: boolean,
+) {
+  return manualGateOpen || sequencerRunning;
+}
