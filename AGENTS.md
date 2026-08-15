@@ -23,7 +23,7 @@ A browser bass voice whose only audible source is a controllable-length loop fro
 - Keep `MIDIAccess` alive across device changes, rescan on topology changes, and distinguish an open port from one that has actually delivered knob data.
 - Relative MIDI should follow each control's perceptual scale. Sample count and repeat rate use fine logarithmic movement; cutoff, resonance, and volume use the fixed additive steps in `app/earthscope/controls.ts`.
 - Latch defaults on. When latch is off, playable MIDI keys gate the output without stopping the live seismic loop, EarthScope updates, or MIDI connections.
-- Keep the internal clock running while Birdtown is open. Sequencer On controls whether the pattern drives the voice; it does not start or stop the clock.
+- Keep the clock stopped when Birdtown opens. Start and Stop control the selected clock source explicitly; Sequencer On only controls whether the pattern drives the voice.
 - Keep the internal sequencer monophonic. MIDI recording and pointer painting may replace the note in a step, but must not introduce a second audio voice or non-seismic sound source.
 - Keep the interface close to the semantic, native-control style used by `eastmountaincode/htmlmusic`. Avoid decorative cards, subtitles, tooltips, and implementation copy.
 

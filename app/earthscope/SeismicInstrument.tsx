@@ -125,17 +125,14 @@ export function SeismicInstrument() {
     onTempoChange: setExternalTempoBpm,
     onTransportChange: handleExternalTransport,
   });
-  const startMidiClock = midiClock.start;
   const stopMidiClock = midiClock.stop;
 
   useEffect(() => {
     if (clockSource !== "internal") {
       stopMidiClock();
-      return;
     }
-    void startMidiClock();
     return stopMidiClock;
-  }, [clockSource, startMidiClock, stopMidiClock]);
+  }, [clockSource, stopMidiClock]);
 
   const changeControl = useCallback(
     (key: VoiceControlKey, value: number) => {
