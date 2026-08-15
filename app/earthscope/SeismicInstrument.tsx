@@ -86,9 +86,11 @@ export function SeismicInstrument() {
   );
   const midi = useMidiControls({
     controls,
+    lowPassLfo,
     onActiveNoteChange: sequencer.setActiveMidiNote,
     onHeldKeysChange: changeHeldKeys,
     setControls,
+    setLowPassLfo,
     setPitchBendRatio: audio.setPitchBendRatio,
     setRepeatsPerSecond: audio.setRepeatsPerSecond,
   });

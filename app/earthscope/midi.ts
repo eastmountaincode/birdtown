@@ -4,6 +4,15 @@ import {
   type VoiceControlKey,
   type VoiceControls,
 } from "./controls";
+import {
+  clampLowPassLfo,
+  lowPassLfoTimeToPosition,
+  lowPassLfoTimingToPosition,
+  LOW_PASS_LFO_TIMINGS,
+  positionToLowPassLfoTimeRate,
+  positionToLowPassLfoTiming,
+  type LowPassLfoSettings,
+} from "./lowPassLfo";
 
 export const MPK_MINI_KNOB_CONTROLS: Readonly<Record<number, VoiceControlKey>> = {
   24: "sampleCount",
@@ -11,6 +20,11 @@ export const MPK_MINI_KNOB_CONTROLS: Readonly<Record<number, VoiceControlKey>> =
   26: "cutoff",
   27: "resonance",
 };
+
+export const MPK_MINI_LFO_KNOB_CONTROLS = {
+  28: "depth",
+  29: "time",
+} as const;
 
 export const MPK_MINI_KEY_CHANNEL = 0;
 export const PITCH_BEND_RANGE_SEMITONES = 2;
@@ -21,6 +35,7 @@ const MIDI_PITCH_BEND_MAX = 16383;
 // Preserve the established repeat-knob sensitivity after expanding the range.
 const REPEAT_RATE_MIDI_RATIO = Math.pow(40 / 0.01, 1 / 256);
 const SAMPLE_COUNT_MIDI_RATIO = 1.025;
+const LOW_PASS_LFO_MIDI_POSITION_STEP = 0.01;
 
 export interface MidiInputLike {
   id: string;
@@ -401,4 +416,41 @@ export function applyMidiControl(
 
   if (clamped === controls[key]) return controls;
   return { ...controls, [key]: clamped };
+}
+
+export function applyMidiLowPassLfoControl(
+  settings: LowPassLfoSettings,
+  controller: number,
+  rawValue: number,
+) {
+  const key =
+    MPK_MINI_LFO_KNOB_CONTROLS[
+      controller as keyof typeof MPK_MINI_LFO_KNOB_CONTROLS
+    ];
+  if (!key) return settings;
+
+  const delta = decodeRelativeMidiValue(rawValue);
+  if (delta === 0) return settings;
+
+  if (key === "depth") {
+    const depth = clampLowPassLfo(
+      "depth",
+      settings.depth + delta * LOW_PASS_LFO_MIDI_POSITION_STEP,
+    );
+    return depth === settings.depth ? settings : { ...settings, depth };
+  }
+
+  if (settings.syncEnabled) {
+    const timing = positionToLowPassLfoTiming(
+      lowPassLfoTimingToPosition(settings.timing) +
+        delta / (LOW_PASS_LFO_TIMINGS.length - 1),
+    ).value;
+    return timing === settings.timing ? settings : { ...settings, timing };
+  }
+
+  const rate = positionToLowPassLfoTimeRate(
+    lowPassLfoTimeToPosition(settings.rate) +
+      delta * LOW_PASS_LFO_MIDI_POSITION_STEP,
+  );
+  return rate === settings.rate ? settings : { ...settings, rate };
 }

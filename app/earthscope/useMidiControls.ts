@@ -9,13 +9,16 @@ import {
   type SetStateAction,
 } from "react";
 import type { VoiceControls } from "./controls";
+import type { LowPassLfoSettings } from "./lowPassLfo";
 import {
   applyMidiControl,
+  applyMidiLowPassLfoControl,
   decodeRelativeMidiValue,
   listMidiInputSelections,
   midiInputTopology,
   moveSampleCountRelatively,
   MPK_MINI_KNOB_CONTROLS,
+  MPK_MINI_LFO_KNOB_CONTROLS,
   MPK_MINI_KEY_CHANNEL,
   parseControlChange,
   parseNoteMessage,
@@ -55,16 +58,20 @@ function isMpkDawPort(input: MIDIInput) {
 
 export function useMidiControls({
   controls,
+  lowPassLfo,
   onActiveNoteChange,
   onHeldKeysChange,
   setControls,
+  setLowPassLfo,
   setPitchBendRatio,
   setRepeatsPerSecond,
 }: {
   controls: VoiceControls;
+  lowPassLfo: LowPassLfoSettings;
   onActiveNoteChange: (note: number | null) => void;
   onHeldKeysChange: (hasHeldKeys: boolean) => void;
   setControls: Dispatch<SetStateAction<VoiceControls>>;
+  setLowPassLfo: Dispatch<SetStateAction<LowPassLfoSettings>>;
   setPitchBendRatio: (ratio: number) => void;
   setRepeatsPerSecond: (value: number) => void;
 }) {
@@ -81,6 +88,7 @@ export function useMidiControls({
   const heldNotesRef = useRef<HeldMidiNote[]>([]);
   const activeNoteRef = useRef<number | null>(null);
   const hasHeldKeysRef = useRef(false);
+  const lowPassLfoRef = useRef(lowPassLfo);
   const onActiveNoteChangeRef = useRef(onActiveNoteChange);
   const onHeldKeysChangeRef = useRef(onHeldKeysChange);
   const pendingInputsRef = useRef(new Map<string, MIDIInput>());
@@ -108,6 +116,10 @@ export function useMidiControls({
       sampleCountTargetRef.current = controls.sampleCount;
     }
   }, [controls]);
+
+  useEffect(() => {
+    lowPassLfoRef.current = lowPassLfo;
+  }, [lowPassLfo]);
 
   const enqueuePortOperation = useCallback(
     function enqueue<T>(
@@ -293,6 +305,10 @@ export function useMidiControls({
         MPK_MINI_KNOB_CONTROLS,
         message.controller,
       );
+      const mappedLfo = Object.prototype.hasOwnProperty.call(
+        MPK_MINI_LFO_KNOB_CONTROLS,
+        message.controller,
+      );
 
       if (mapped) {
         if (message.controller === 24) {
@@ -328,12 +344,24 @@ export function useMidiControls({
             setControls(next);
           }
         }
+      } else if (mappedLfo) {
+        const current = lowPassLfoRef.current;
+        const next = applyMidiLowPassLfoControl(
+          current,
+          message.controller,
+          message.rawValue,
+        );
+        if (next !== current) {
+          lowPassLfoRef.current = next;
+          setLowPassLfo(next);
+        }
       }
     },
     [
       selectRepeatRate,
       setControls,
       setHeldNotes,
+      setLowPassLfo,
       setPitchBendRatio,
     ],
   );

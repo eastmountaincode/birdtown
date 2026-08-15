@@ -7,6 +7,7 @@ import {
 } from "../app/earthscope/controls";
 import {
   applyMidiControl,
+  applyMidiLowPassLfoControl,
   decodeRelativeMidiValue,
   instrumentNoteForMidiNote,
   listMidiInputSelections,
@@ -17,6 +18,7 @@ import {
   moveSampleCountRelatively,
   MPK_MINI_KEY_CHANNEL,
   MPK_MINI_KNOB_CONTROLS,
+  MPK_MINI_LFO_KNOB_CONTROLS,
   parseControlChange,
   parseNoteMessage,
   parsePitchBend,
@@ -28,6 +30,10 @@ import {
   resolveMidiInputSelection,
   updateHeldNotes,
 } from "../app/earthscope/midi";
+import {
+  DEFAULT_LOW_PASS_LFO,
+  lowPassLfoTimeToPosition,
+} from "../app/earthscope/lowPassLfo";
 import { voiceGateOpen } from "../app/earthscope/voiceGate";
 
 const MIDI_PORT = {
@@ -80,6 +86,45 @@ describe("MPK mini controls", () => {
       26: "cutoff",
       27: "resonance",
     });
+    expect(MPK_MINI_LFO_KNOB_CONTROLS).toEqual({
+      28: "depth",
+      29: "time",
+    });
+  });
+
+  test("maps knobs five and six to LFO depth and free time", () => {
+    const deeper = applyMidiLowPassLfoControl(
+      DEFAULT_LOW_PASS_LFO,
+      28,
+      1,
+    );
+    const longer = applyMidiLowPassLfoControl(
+      DEFAULT_LOW_PASS_LFO,
+      29,
+      1,
+    );
+
+    expect(deeper.depth).toBe(0.01);
+    expect(deeper.rate).toBe(DEFAULT_LOW_PASS_LFO.rate);
+    expect(lowPassLfoTimeToPosition(longer.rate)).toBeCloseTo(
+      lowPassLfoTimeToPosition(DEFAULT_LOW_PASS_LFO.rate) + 0.01,
+    );
+    expect(longer.rate).toBeLessThan(DEFAULT_LOW_PASS_LFO.rate);
+  });
+
+  test("steps knob six through musical divisions in sync mode", () => {
+    const synced = {
+      ...DEFAULT_LOW_PASS_LFO,
+      syncEnabled: true,
+      timing: "eighth" as const,
+    };
+
+    expect(applyMidiLowPassLfoControl(synced, 29, 1).timing).toBe(
+      "sixteenth-dotted",
+    );
+    expect(applyMidiLowPassLfoControl(synced, 29, 127).timing).toBe(
+      "eighth-dotted",
+    );
   });
 
   test("prefers the MPK MIDI port regardless of enumeration order", () => {
