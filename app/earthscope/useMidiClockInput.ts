@@ -17,7 +17,7 @@ import {
 } from "./midiClock";
 import { clampTempo } from "./tempo";
 
-const TEMPO_INTERVAL_COUNT = MIDI_CLOCK_PPQN;
+const TEMPO_INTERVAL_COUNT = MIDI_CLOCK_PPQN * 4;
 const TEMPO_INTERVAL_MINIMUM = MIDI_CLOCK_PULSES_PER_SIXTEENTH;
 const TRANSPORT_REBASE_PULSES = MIDI_CLOCK_PPQN * 4;
 

@@ -106,6 +106,24 @@ describe("MIDI clock", () => {
     expect(midiClockTempoFromIntervals([])).toBeNull();
   });
 
+  test("keeps neighboring jittered clock windows on the actual whole BPM", () => {
+    const fasterMedianWindow = [
+      ...Array<number>(52).fill(12.5),
+      ...Array<number>(44).fill(12.625),
+    ];
+    const slowerMedianWindow = [
+      ...Array<number>(44).fill(12.5),
+      ...Array<number>(52).fill(12.625),
+    ];
+
+    expect(
+      Math.round(midiClockTempoFromIntervals(fasterMedianWindow) ?? 0),
+    ).toBe(199);
+    expect(
+      Math.round(midiClockTempoFromIntervals(slowerMedianWindow) ?? 0),
+    ).toBe(199);
+  });
+
   test("rebases the shared transport to the incoming pulse position", () => {
     expect(
       externalClockTransportStartAt({

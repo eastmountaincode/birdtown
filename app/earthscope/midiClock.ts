@@ -294,12 +294,18 @@ export function midiClockTempoFromIntervals(
     .sort((left, right) => left - right);
   if (valid.length === 0) return null;
 
-  const middle = Math.floor(valid.length / 2);
-  const median =
-    valid.length % 2 === 0
-      ? (valid[middle - 1] + valid[middle]) / 2
-      : valid[middle];
-  return 60_000 / (median * MIDI_CLOCK_PPQN);
+  const trimCount = valid.length >= 8
+    ? Math.max(1, Math.floor(valid.length * 0.1))
+    : 0;
+  const centralIntervals = valid.slice(
+    trimCount,
+    valid.length - trimCount,
+  );
+  const averageInterval = centralIntervals.reduce(
+    (total, interval) => total + interval,
+    0,
+  ) / centralIntervals.length;
+  return 60_000 / (averageInterval * MIDI_CLOCK_PPQN);
 }
 
 export function externalClockTransportStartAt({
