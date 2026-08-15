@@ -17,10 +17,13 @@ import {
   sequenceHasNotes,
   sequencePositionAtTime,
   sequenceRateAtStep,
-  sequenceStepDurationSeconds,
   type MelodicSequence,
   type SequencerTransport,
 } from "./sequencer";
+import {
+  buildSequenceSchedule,
+  sequenceAudioStartAt,
+} from "./sequenceSchedule";
 import {
   setAudioContextOutput,
   type AudioOutputChannel,
@@ -49,6 +52,7 @@ export interface SeismicAudioEngine {
 
 const SEQUENCE_LOOKAHEAD_SECONDS = 240;
 const SEQUENCE_REFILL_MARGIN_SECONDS = 60;
+const SEQUENCE_GATE_TIME_CONSTANT = 0.006;
 
 type NavigatorWithAudioSession = Navigator & {
   audioSession?: {
@@ -63,6 +67,16 @@ function requestPlaybackAudioSession() {
   } catch {
     // AudioSession is experimental. AudioContext.resume() remains the fallback.
   }
+}
+
+function holdAudioParam(param: AudioParam, at: number) {
+  const value = param.value;
+  if (typeof param.cancelAndHoldAtTime === "function") {
+    param.cancelAndHoldAtTime(at);
+    return;
+  }
+  param.cancelScheduledValues(at);
+  param.setValueAtTime(value, at);
 }
 
 function makeLoopBuffer(
@@ -272,26 +286,12 @@ export async function startSeismicAudio(
     nextTransport: SequencerTransport,
     now = context.currentTime,
   ) => {
-    const wasEnabled = sequenceIsRunning();
-    const sameTransport =
-      wasEnabled &&
-      nextTransport.running &&
-      nextTransport.startedAtMs === sequenceTransport.startedAtMs;
-    const previousPosition = wasEnabled
-      ? sequencePositionAtTime({
-          length: sequence.length,
-          now,
-          startAt: sequenceStartAt,
-          tempoBpm: scheduledTempoBpm,
-        })
-      : { progress: 0, step: 0 };
-
     sequence = nextSequence;
     sequenceTransport = nextTransport;
     scheduledTempoBpm = nextTempoBpm;
     repeatRateSignal.offset.cancelScheduledValues(now);
     gate.gain.cancelScheduledValues(now);
-    sequenceGate.gain.cancelScheduledValues(now);
+    holdAudioParam(sequenceGate.gain, now);
     const sequencerRunning = sequenceIsRunning();
     gate.gain.setTargetAtTime(
       sourceGateOpen(gateOpen, sequencerRunning) ? 1 : 0,
@@ -303,57 +303,52 @@ export async function startSeismicAudio(
       sequenceStartAt = now;
       sequenceScheduledUntil = 0;
       repeatRateSignal.offset.setValueAtTime(manualRepeatRate, now);
-      sequenceGate.gain.setTargetAtTime(1, now, 0.006);
+      sequenceGate.gain.setTargetAtTime(
+        1,
+        now,
+        SEQUENCE_GATE_TIME_CONSTANT,
+      );
       activeRepeats = effectiveRepeatRate(manualRepeatRate);
       return;
     }
 
-    const stepDuration = sequenceStepDurationSeconds(scheduledTempoBpm);
-    const preservedStep = previousPosition.step % sequence.length;
-    sequenceStartAt = sameTransport
-      ? now - (preservedStep + previousPosition.progress) * stepDuration
-      : nextTransport.startedAtMs === null
-        ? now
-        : now + (nextTransport.startedAtMs - performance.now()) / 1000;
-
-    const position = sequencePositionAtTime({
-      length: sequence.length,
-      now,
-      startAt: sequenceStartAt,
-      tempoBpm: scheduledTempoBpm,
+    sequenceStartAt = sequenceAudioStartAt({
+      audioNow: now,
+      performanceNowMs: performance.now(),
+      startedAtMs: nextTransport.startedAtMs,
     });
 
     if (midiOverrideActive) {
       sequenceScheduledUntil = 0;
       repeatRateSignal.offset.setValueAtTime(manualRepeatRate, now);
-      sequenceGate.gain.setTargetAtTime(1, now, 0.006);
+      sequenceGate.gain.setTargetAtTime(
+        1,
+        now,
+        SEQUENCE_GATE_TIME_CONSTANT,
+      );
       activeRepeats = effectiveRepeatRate(manualRepeatRate);
       return;
     }
 
-    const currentNote = sequence.notes[position.step] ?? null;
-    repeatRateSignal.offset.setValueAtTime(
-      sequenceRateAtStep(sequence, position.step, manualRepeatRate),
+    const schedule = buildSequenceSchedule({
+      fallbackRate: manualRepeatRate,
       now,
-    );
-    sequenceGate.gain.setTargetAtTime(currentNote === null ? 0 : 1, now, 0.006);
-
-    let step = (position.step + 1) % sequence.length;
-    let stepAt = now + (1 - position.progress) * stepDuration;
-    const scheduleUntil = now + SEQUENCE_LOOKAHEAD_SECONDS;
-    while (stepAt < scheduleUntil) {
-      const note = sequence.notes[step] ?? null;
-      if (note !== null) {
-        repeatRateSignal.offset.setValueAtTime(
-          sequenceRateAtStep(sequence, step, manualRepeatRate),
-          stepAt,
-        );
+      sequence,
+      startAt: sequenceStartAt,
+      tempoBpm: scheduledTempoBpm,
+      until: now + SEQUENCE_LOOKAHEAD_SECONDS,
+    });
+    for (const event of schedule.events) {
+      if (event.rate !== null) {
+        repeatRateSignal.offset.setValueAtTime(event.rate, event.at);
       }
-      sequenceGate.gain.setTargetAtTime(note === null ? 0 : 1, stepAt, 0.006);
-      step = (step + 1) % sequence.length;
-      stepAt += stepDuration;
+      sequenceGate.gain.setTargetAtTime(
+        event.gateOpen ? 1 : 0,
+        event.at,
+        SEQUENCE_GATE_TIME_CONSTANT,
+      );
     }
-    sequenceScheduledUntil = stepAt;
+    sequenceScheduledUntil = schedule.scheduledUntil;
     activeRepeats = repeatRateAt(now);
   };
 
