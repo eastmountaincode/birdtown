@@ -4,6 +4,7 @@ import {
   clearSequence,
   DEFAULT_SEQUENCE,
   retimeTransportForSequenceLength,
+  SEQUENCE_LENGTHS,
   setSequenceEnabled,
   sequenceHasNotes,
   sequencePositionAtTime,
@@ -22,7 +23,8 @@ describe("melodic sequencer", () => {
   test("starts as an empty 16-step sequence", () => {
     expect(DEFAULT_SEQUENCE.enabled).toBe(true);
     expect(DEFAULT_SEQUENCE.length).toBe(16);
-    expect(DEFAULT_SEQUENCE.notes).toHaveLength(36);
+    expect(SEQUENCE_LENGTHS).toEqual([8, 16, 24, 32]);
+    expect(DEFAULT_SEQUENCE.notes).toHaveLength(32);
     expect(sequenceHasNotes(DEFAULT_SEQUENCE)).toBe(false);
   });
 
@@ -65,7 +67,7 @@ describe("melodic sequencer", () => {
     expect(sequenceHasNotes(expanded)).toBe(true);
   });
 
-  test("keeps step 1 at step 1 when changing from 16 to 36 steps", () => {
+  test("keeps step 1 at step 1 when changing from 16 to 32 steps", () => {
     const tempoBpm = 120;
     const stepDurationMs = sequenceStepDurationSeconds(tempoBpm) * 1_000;
     const nowMs = 48 * stepDurationMs;
@@ -81,23 +83,23 @@ describe("melodic sequencer", () => {
     ).toBe(0);
     expect(
       sequencePositionAtTime({
-        length: 36,
+        length: 32,
         now: nowMs / 1_000,
         startAt: 0,
         tempoBpm,
       }).step,
-    ).toBe(12);
+    ).toBe(16);
 
     const retimed = retimeTransportForSequenceLength({
       currentLength: 16,
-      nextLength: 36,
+      nextLength: 32,
       nowMs,
       tempoBpm,
       transport,
     });
     expect(
       sequencePositionAtTime({
-        length: 36,
+        length: 32,
         now: nowMs / 1_000,
         startAt: (retimed.startedAtMs ?? 0) / 1_000,
         tempoBpm,
@@ -106,7 +108,7 @@ describe("melodic sequencer", () => {
   });
 
   test("clears every stored step, including hidden ones", () => {
-    const programmed = toggleSequenceNote(DEFAULT_SEQUENCE, 35, 72);
+    const programmed = toggleSequenceNote(DEFAULT_SEQUENCE, 31, 72);
     expect(clearSequence(programmed).notes.every((note) => note === null)).toBe(
       true,
     );
@@ -114,12 +116,12 @@ describe("melodic sequencer", () => {
 
   test("moves every stored step up or down one octave", () => {
     const withVisibleNote = setSequenceNote(DEFAULT_SEQUENCE, 0, 36);
-    const withHiddenNote = setSequenceNote(withVisibleNote, 35, 47);
+    const withHiddenNote = setSequenceNote(withVisibleNote, 31, 47);
     const movedUp = transposeSequence(withHiddenNote, 12);
     const movedDown = transposeSequence(movedUp, -12);
 
     expect(movedUp.notes[0]).toBe(48);
-    expect(movedUp.notes[35]).toBe(59);
+    expect(movedUp.notes[31]).toBe(59);
     expect(movedDown.notes).toEqual(withHiddenNote.notes);
   });
 

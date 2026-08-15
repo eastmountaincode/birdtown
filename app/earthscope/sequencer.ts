@@ -1,7 +1,7 @@
 import { clampTempo } from "./tempo";
 
-export const SEQUENCE_LENGTHS = [8, 16, 24, 36] as const;
-export const MAX_SEQUENCE_STEPS = 36;
+export const SEQUENCE_LENGTHS = [8, 16, 24, 32] as const;
+export const MAX_SEQUENCE_STEPS = 32;
 export const SEQUENCER_OCTAVES = [1, 2, 3, 4, 5] as const;
 export const SEQUENCER_MIN_NOTE = 24;
 export const SEQUENCER_MAX_NOTE = 72;
