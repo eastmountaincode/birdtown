@@ -186,9 +186,13 @@ export function SeismicInstrument() {
             connected={midi.midiAccess !== null}
             error={midiClock.error}
             onOutputChange={midiClock.selectOutput}
+            onStart={midiClock.start}
+            onStop={midiClock.stop}
             onTempoChange={changeTempo}
             outputs={midiClock.outputs}
+            running={midiClock.running}
             selectedOutputIds={midiClock.selectedOutputIds}
+            starting={midiClock.starting}
             tempoBpm={tempoBpm}
           />
           <SettingsPanel
