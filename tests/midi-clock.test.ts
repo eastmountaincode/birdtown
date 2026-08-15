@@ -3,20 +3,29 @@ import {
   buildMidiClockSchedule,
   canClearMidiOutputQueue,
   clearMidiOutputQueue,
+  externalClockTransportStartAt,
+  listMidiClockInputs,
   listMidiClockOutputs,
   MIDI_CLOCK_CLEARABLE_WINDOW,
+  midiClockTempoFromIntervals,
   midiClockOutputOptions,
+  midiClockInputOptions,
   midiClockPulseIntervalMs,
   MIDI_CLOCK_ROLLING_WINDOW,
   midiClockScheduleWindow,
   midiOutputFingerprint,
   midiOutputTopology,
+  midiInputFingerprint,
   MIDI_CLOCK_PPQN,
+  MIDI_CONTINUE,
   MIDI_START,
   MIDI_STOP,
   MIDI_TIMING_CLOCK,
+  parseMidiRealtimeMessage,
+  recommendedMidiClockInput,
   recommendedMidiClockOutputs,
   resolveMidiClockOutputs,
+  restoreMidiClockInput,
   restoreMidiClockOutputSelection,
 } from "../app/earthscope/midiClock";
 import {
@@ -54,12 +63,80 @@ const CLARETT_PORT = {
   state: "connected",
 };
 
+const MPK_INPUT = {
+  id: "mpk-input-1",
+  manufacturer: "Akai Professional",
+  name: "MPK mini IV MIDI Port",
+  state: "connected",
+};
+
+const CLARETT_INPUT = {
+  id: "clarett-input-1",
+  manufacturer: "Focusrite",
+  name: "Clarett 4Pre MIDI",
+  state: "connected",
+};
+
 describe("MIDI clock", () => {
   test("uses the standard real-time transport messages and 24 PPQN", () => {
     expect(MIDI_TIMING_CLOCK).toBe(0xf8);
     expect(MIDI_START).toBe(0xfa);
+    expect(MIDI_CONTINUE).toBe(0xfb);
     expect(MIDI_STOP).toBe(0xfc);
     expect(MIDI_CLOCK_PPQN).toBe(24);
+  });
+
+  test("decodes only MIDI real-time clock and transport messages", () => {
+    expect(parseMidiRealtimeMessage([MIDI_TIMING_CLOCK])).toBe("clock");
+    expect(parseMidiRealtimeMessage([MIDI_START])).toBe("start");
+    expect(parseMidiRealtimeMessage([MIDI_CONTINUE])).toBe("continue");
+    expect(parseMidiRealtimeMessage([MIDI_STOP])).toBe("stop");
+    expect(parseMidiRealtimeMessage([0x90, 60, 127])).toBeNull();
+    expect(parseMidiRealtimeMessage([])).toBeNull();
+  });
+
+  test("derives tempo from incoming pulses without letting one delay skew it", () => {
+    const pulseInterval = 60_000 / (120 * MIDI_CLOCK_PPQN);
+    const intervals = [
+      ...Array<number>(23).fill(pulseInterval),
+      pulseInterval * 4,
+    ];
+
+    expect(midiClockTempoFromIntervals(intervals)).toBeCloseTo(120);
+    expect(midiClockTempoFromIntervals([])).toBeNull();
+  });
+
+  test("rebases the shared transport to the incoming pulse position", () => {
+    expect(
+      externalClockTransportStartAt({
+        pulseAtMs: 1_000,
+        pulseCount: 12,
+        tempoBpm: 120,
+      }),
+    ).toBeCloseTo(750);
+  });
+
+  test("keeps clock inputs separate and recommends external hardware", () => {
+    expect(
+      listMidiClockInputs([MPK_INPUT, CLARETT_INPUT]).map(({ id }) => id),
+    ).toEqual(["clarett-input-1", "mpk-input-1"]);
+    expect(recommendedMidiClockInput([MPK_INPUT, CLARETT_INPUT])?.id).toBe(
+      "clarett-input-1",
+    );
+    expect(midiClockInputOptions([CLARETT_INPUT])).toEqual([
+      { id: "clarett-input-1", name: "Clarett 4Pre MIDI" },
+    ]);
+  });
+
+  test("restores the selected clock input after CoreMIDI changes its id", () => {
+    const reenumerated = { ...CLARETT_INPUT, id: "clarett-input-2" };
+    expect(
+      restoreMidiClockInput(
+        [reenumerated, MPK_INPUT],
+        CLARETT_INPUT.id,
+        midiInputFingerprint(CLARETT_INPUT),
+      )?.id,
+    ).toBe("clarett-input-2");
   });
 
   test("clamps tempo to the shared musical range", () => {

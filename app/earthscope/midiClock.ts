@@ -2,8 +2,17 @@ import { clampTempo } from "./tempo";
 
 export const MIDI_TIMING_CLOCK = 0xf8;
 export const MIDI_START = 0xfa;
+export const MIDI_CONTINUE = 0xfb;
 export const MIDI_STOP = 0xfc;
 export const MIDI_CLOCK_PPQN = 24;
+export const MIDI_CLOCK_PULSES_PER_SIXTEENTH = MIDI_CLOCK_PPQN / 4;
+
+export type ClockSource = "internal" | "midi";
+export type MidiRealtimeMessage =
+  | "clock"
+  | "start"
+  | "continue"
+  | "stop";
 
 export const MIDI_CLOCK_CLEARABLE_WINDOW = {
   lookaheadMs: 75_000,
@@ -20,6 +29,18 @@ export interface MidiOutputLike {
   manufacturer?: string | null;
   name?: string | null;
   state?: string;
+}
+
+export interface MidiInputLike {
+  id: string;
+  manufacturer?: string | null;
+  name?: string | null;
+  state?: string;
+}
+
+export interface MidiClockInputOption {
+  id: string;
+  name: string;
 }
 
 export interface MidiClockOutputOption {
@@ -59,6 +80,82 @@ export function midiClockScheduleWindow(
 
 function normalizeMidiName(value: string | null | undefined) {
   return value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+}
+
+export function parseMidiRealtimeMessage(
+  data: ArrayLike<number>,
+): MidiRealtimeMessage | null {
+  switch (data[0]) {
+    case MIDI_TIMING_CLOCK:
+      return "clock";
+    case MIDI_START:
+      return "start";
+    case MIDI_CONTINUE:
+      return "continue";
+    case MIDI_STOP:
+      return "stop";
+    default:
+      return null;
+  }
+}
+
+export function midiInputFingerprint(input: MidiInputLike) {
+  return `${normalizeMidiName(input.manufacturer)}:${normalizeMidiName(input.name)}`;
+}
+
+export function listMidiClockInputs<T extends MidiInputLike>(
+  inputs: Iterable<T>,
+) {
+  return [...inputs]
+    .filter((input) => input.state !== "disconnected")
+    .sort((left, right) => {
+      const leftIsMpk = normalizeMidiName(left.name).includes("mpk mini");
+      const rightIsMpk = normalizeMidiName(right.name).includes("mpk mini");
+      if (leftIsMpk !== rightIsMpk) return leftIsMpk ? 1 : -1;
+      return (left.name ?? "").localeCompare(right.name ?? "");
+    });
+}
+
+export function midiClockInputOptions(
+  inputs: Iterable<MidiInputLike>,
+): MidiClockInputOption[] {
+  return listMidiClockInputs(inputs).map((input) => ({
+    id: input.id,
+    name: input.name?.trim() || "MIDI input",
+  }));
+}
+
+export function recommendedMidiClockInput<T extends MidiInputLike>(
+  inputs: Iterable<T>,
+) {
+  return listMidiClockInputs(inputs)[0] ?? null;
+}
+
+export function restoreMidiClockInput<T extends MidiInputLike>(
+  inputs: Iterable<T>,
+  currentId: string | null,
+  preferredFingerprint: string | null,
+) {
+  const available = listMidiClockInputs(inputs);
+  return (
+    available.find((input) => input.id === currentId) ??
+    available.find(
+      (input) =>
+        preferredFingerprint !== null &&
+        midiInputFingerprint(input) === preferredFingerprint,
+    ) ??
+    null
+  );
+}
+
+export function midiInputTopology(inputs: Iterable<MidiInputLike>) {
+  return [...inputs]
+    .map(
+      (input) =>
+        `${input.id}:${input.state ?? "unknown"}:${midiInputFingerprint(input)}`,
+    )
+    .sort()
+    .join("|");
 }
 
 function outputPriority(output: MidiOutputLike) {
@@ -187,6 +284,38 @@ export function midiOutputTopology(outputs: Iterable<MidiOutputLike>) {
 
 export function midiClockPulseIntervalMs(tempoBpm: number) {
   return 60_000 / (clampTempo(tempoBpm) * MIDI_CLOCK_PPQN);
+}
+
+export function midiClockTempoFromIntervals(
+  intervalsMs: readonly number[],
+) {
+  const valid = intervalsMs
+    .filter((interval) => Number.isFinite(interval) && interval > 0)
+    .sort((left, right) => left - right);
+  if (valid.length === 0) return null;
+
+  const middle = Math.floor(valid.length / 2);
+  const median =
+    valid.length % 2 === 0
+      ? (valid[middle - 1] + valid[middle]) / 2
+      : valid[middle];
+  return 60_000 / (median * MIDI_CLOCK_PPQN);
+}
+
+export function externalClockTransportStartAt({
+  pulseAtMs,
+  pulseCount,
+  tempoBpm,
+}: {
+  pulseAtMs: number;
+  pulseCount: number;
+  tempoBpm: number;
+}) {
+  return (
+    pulseAtMs -
+    Math.max(0, Math.floor(pulseCount)) *
+      midiClockPulseIntervalMs(tempoBpm)
+  );
 }
 
 export function buildMidiClockSchedule({

@@ -17,11 +17,14 @@ import {
 } from "./lowPassLfo";
 import { LowPassLfoPanel } from "./LowPassLfoPanel";
 import { MidiPanel } from "./MidiPanel";
+import type { ClockSource } from "./midiClock";
 import { SettingsPanel } from "./SettingsPanel";
 import { SequencerPanel } from "./SequencerPanel";
 import { clampTempo, DEFAULT_TEMPO } from "./tempo";
 import { useMelodicSequencer } from "./useMelodicSequencer";
 import { useMidiClock } from "./useMidiClock";
+import { useMidiClockInput } from "./useMidiClockInput";
+import { useMidiClockThru } from "./useMidiClockThru";
 import { useMidiControls } from "./useMidiControls";
 import { useSeismicAudio } from "./useSeismicAudio";
 import { voiceGateOpen } from "./voiceGate";
@@ -38,8 +41,21 @@ export function SeismicInstrument() {
   const [latchEnabled, setLatchEnabled] = useState(true);
   const latchEnabledRef = useRef(true);
   const [lowPassLfo, setLowPassLfo] = useState(DEFAULT_LOW_PASS_LFO);
-  const [tempoBpm, setTempoBpm] = useState(DEFAULT_TEMPO);
+  const [clockSource, setClockSource] =
+    useState<ClockSource>("internal");
+  const clockSourceRef = useRef<ClockSource>("internal");
+  const [clockThruEnabled, setClockThruEnabled] = useState(false);
+  const [externalTempoBpm, setExternalTempoBpm] = useState<number | null>(
+    null,
+  );
+  const [internalTempoBpm, setInternalTempoBpm] =
+    useState(DEFAULT_TEMPO);
+  const tempoBpm =
+    clockSource === "midi"
+      ? externalTempoBpm ?? internalTempoBpm
+      : internalTempoBpm;
   const sequencer = useMelodicSequencer(tempoBpm);
+  const setClockTransport = sequencer.setClockTransport;
   const audio = useSeismicAudio({
     controls,
     gateOpen: voiceGateOpen(latchEnabled, hasHeldMidiKeys),
@@ -76,18 +92,50 @@ export function SeismicInstrument() {
     setPitchBendRatio: audio.setPitchBendRatio,
     setRepeatsPerSecond: audio.setRepeatsPerSecond,
   });
+  const handleInternalTransport = useCallback(
+    (running: boolean, startedAtMs: number | null) => {
+      if (clockSourceRef.current === "internal") {
+        setClockTransport(running, startedAtMs);
+      }
+    },
+    [setClockTransport],
+  );
+  const handleExternalTransport = useCallback(
+    (running: boolean, startedAtMs: number | null) => {
+      if (clockSourceRef.current === "midi") {
+        setClockTransport(running, startedAtMs);
+      }
+    },
+    [setClockTransport],
+  );
   const midiClock = useMidiClock({
     access: midi.midiAccess,
-    onTransportChange: sequencer.setClockTransport,
-    tempoBpm,
+    onTransportChange: handleInternalTransport,
+    tempoBpm: internalTempoBpm,
+  });
+  const midiClockThru = useMidiClockThru({
+    access: midi.midiAccess,
+    enabled: clockSource === "midi" && clockThruEnabled,
+    selectedOutputIds: midiClock.selectedOutputIds,
+  });
+  const externalClock = useMidiClockInput({
+    access: midi.midiAccess,
+    enabled: clockSource === "midi",
+    onRealtimeMessage: midiClockThru.send,
+    onTempoChange: setExternalTempoBpm,
+    onTransportChange: handleExternalTransport,
   });
   const startMidiClock = midiClock.start;
   const stopMidiClock = midiClock.stop;
 
   useEffect(() => {
+    if (clockSource !== "internal") {
+      stopMidiClock();
+      return;
+    }
     void startMidiClock();
     return stopMidiClock;
-  }, [startMidiClock, stopMidiClock]);
+  }, [clockSource, startMidiClock, stopMidiClock]);
 
   const changeControl = useCallback(
     (key: VoiceControlKey, value: number) => {
@@ -112,8 +160,30 @@ export function SeismicInstrument() {
     setLowPassLfo(settings);
   };
   const changeTempo = useCallback((tempoBpm: number) => {
-    setTempoBpm(clampTempo(tempoBpm));
+    setInternalTempoBpm(clampTempo(tempoBpm));
   }, []);
+  const changeClockSource = useCallback(
+    (source: ClockSource) => {
+      if (source === clockSourceRef.current) return;
+      clockSourceRef.current = source;
+      setClockTransport(false, null);
+      setClockSource(source);
+    },
+    [setClockTransport],
+  );
+
+  const clockRunning =
+    clockSource === "internal" ? midiClock.running : externalClock.running;
+  const clockStarting =
+    clockSource === "internal" ? midiClock.starting : false;
+  const clockError =
+    clockSource === "internal"
+      ? midiClock.error
+      : externalClock.error ?? midiClockThru.error;
+  const startClock =
+    clockSource === "internal" ? midiClock.start : externalClock.start;
+  const stopClock =
+    clockSource === "internal" ? midiClock.stop : externalClock.stop;
 
   return (
     <main>
@@ -184,16 +254,29 @@ export function SeismicInstrument() {
           />
           <ClockPanel
             connected={midi.midiAccess !== null}
-            error={midiClock.error}
+            error={clockError}
+            externalStatus={externalClock.status}
+            inputs={externalClock.inputs}
+            onInputChange={externalClock.selectInput}
             onOutputChange={midiClock.selectOutput}
-            onStart={midiClock.start}
-            onStop={midiClock.stop}
+            onSourceChange={changeClockSource}
+            onStart={startClock}
+            onStop={stopClock}
             onTempoChange={changeTempo}
+            onThruChange={setClockThruEnabled}
             outputs={midiClock.outputs}
-            running={midiClock.running}
+            running={clockRunning}
+            selectedInputId={externalClock.selectedInputId}
             selectedOutputIds={midiClock.selectedOutputIds}
-            starting={midiClock.starting}
+            source={clockSource}
+            starting={clockStarting}
             tempoBpm={tempoBpm}
+            tempoOutput={
+              clockSource === "midi" && externalTempoBpm === null
+                ? "— BPM"
+                : `${tempoBpm} BPM`
+            }
+            thruEnabled={clockThruEnabled}
           />
           <SettingsPanel
             audioOutput={audioOutput}

@@ -26,7 +26,7 @@ export function MidiPanel({
           onClick={() => (connected ? disconnect() : void connect())}
           type="button"
         >
-          {connected ? "Disconnect" : connecting ? "Connecting..." : "Connect MPK mini"}
+          {connected ? "Disconnect" : connecting ? "Connecting..." : "Connect MIDI"}
         </button>
         {connected ? (
           <>
