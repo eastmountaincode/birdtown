@@ -236,6 +236,7 @@ export function SeismicInstrument() {
           <SequencerPanel
             activeStep={sequencer.activeStep}
             onChange={sequencer.setSequence}
+            onLengthChange={sequencer.changeSequenceLength}
             onRecordingChange={sequencer.setRecording}
             recording={sequencer.recording}
             sequence={sequencer.sequence}

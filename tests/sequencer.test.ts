@@ -3,6 +3,7 @@ import {
   canTransposeSequence,
   clearSequence,
   DEFAULT_SEQUENCE,
+  retimeTransportForSequenceLength,
   setSequenceEnabled,
   sequenceHasNotes,
   sequencePositionAtTime,
@@ -62,6 +63,46 @@ describe("melodic sequencer", () => {
     expect(sequenceHasNotes(shortened)).toBe(false);
     expect(expanded.notes[23]).toBe(48);
     expect(sequenceHasNotes(expanded)).toBe(true);
+  });
+
+  test("keeps step 1 at step 1 when changing from 16 to 36 steps", () => {
+    const tempoBpm = 120;
+    const stepDurationMs = sequenceStepDurationSeconds(tempoBpm) * 1_000;
+    const nowMs = 48 * stepDurationMs;
+    const transport = { running: true, startedAtMs: 0 };
+
+    expect(
+      sequencePositionAtTime({
+        length: 16,
+        now: nowMs / 1_000,
+        startAt: 0,
+        tempoBpm,
+      }).step,
+    ).toBe(0);
+    expect(
+      sequencePositionAtTime({
+        length: 36,
+        now: nowMs / 1_000,
+        startAt: 0,
+        tempoBpm,
+      }).step,
+    ).toBe(12);
+
+    const retimed = retimeTransportForSequenceLength({
+      currentLength: 16,
+      nextLength: 36,
+      nowMs,
+      tempoBpm,
+      transport,
+    });
+    expect(
+      sequencePositionAtTime({
+        length: 36,
+        now: nowMs / 1_000,
+        startAt: (retimed.startedAtMs ?? 0) / 1_000,
+        tempoBpm,
+      }).step,
+    ).toBe(0);
   });
 
   test("clears every stored step, including hidden ones", () => {

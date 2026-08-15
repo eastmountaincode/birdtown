@@ -5,8 +5,11 @@ import { instrumentNoteForMidiNote } from "./midi";
 import {
   DEFAULT_SEQUENCE,
   isSequencerNote,
+  retimeTransportForSequenceLength,
+  setSequenceLength,
   setSequenceNote,
   STOPPED_SEQUENCER_TRANSPORT,
+  type SequenceLength,
 } from "./sequencer";
 import { useSequencerPlayhead } from "./useSequencerPlayhead";
 
@@ -66,8 +69,26 @@ export function useMelodicSequencer(tempoBpm: number) {
     [],
   );
 
+  const changeSequenceLength = useCallback(
+    (nextLength: SequenceLength) => {
+      const nowMs = performance.now();
+      setTransport((currentTransport) =>
+        retimeTransportForSequenceLength({
+          currentLength: sequence.length,
+          nextLength,
+          nowMs,
+          tempoBpm,
+          transport: currentTransport,
+        }),
+      );
+      setSequence((current) => setSequenceLength(current, nextLength));
+    },
+    [sequence.length, tempoBpm],
+  );
+
   return {
     activeStep,
+    changeSequenceLength,
     recording,
     sequence,
     setActiveMidiNote,

@@ -15,23 +15,25 @@ import {
   sequencerNoteName,
   sequencerNotesForOctave,
   setSequenceEnabled,
-  setSequenceLength,
   setSequenceNote,
   toggleSequenceNote,
   transposeSequence,
   type MelodicSequence,
+  type SequenceLength,
   type SequencerOctave,
 } from "./sequencer";
 
 export function SequencerPanel({
   activeStep,
   onChange,
+  onLengthChange,
   onRecordingChange,
   recording,
   sequence,
 }: {
   activeStep: number | null;
   onChange: Dispatch<SetStateAction<MelodicSequence>>;
+  onLengthChange: (length: SequenceLength) => void;
   onRecordingChange: (recording: boolean) => void;
   recording: boolean;
   sequence: MelodicSequence;
@@ -107,11 +109,7 @@ export function SequencerPanel({
                 <input
                   checked={sequence.length === length}
                   name="sequencer-steps"
-                  onChange={() =>
-                    onChange((current) =>
-                      setSequenceLength(current, length),
-                    )
-                  }
+                  onChange={() => onLengthChange(length)}
                   type="radio"
                 />
                 {length}

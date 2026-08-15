@@ -83,6 +83,43 @@ export function setSequenceLength(
   return { ...sequence, length };
 }
 
+export function retimeTransportForSequenceLength({
+  currentLength,
+  nextLength,
+  nowMs,
+  tempoBpm,
+  transport,
+}: {
+  currentLength: SequenceLength;
+  nextLength: SequenceLength;
+  nowMs: number;
+  tempoBpm: number;
+  transport: SequencerTransport;
+}): SequencerTransport {
+  const startedAtMs = transport.startedAtMs;
+  if (
+    !transport.running ||
+    startedAtMs === null ||
+    currentLength === nextLength ||
+    nowMs <= startedAtMs
+  ) {
+    return transport;
+  }
+
+  const position = sequencePositionAtTime({
+    length: currentLength,
+    now: nowMs / 1_000,
+    startAt: startedAtMs / 1_000,
+    tempoBpm,
+  });
+  const nextPosition = (position.step % nextLength) + position.progress;
+  return {
+    ...transport,
+    startedAtMs:
+      nowMs - nextPosition * sequenceStepDurationSeconds(tempoBpm) * 1_000,
+  };
+}
+
 export function toggleSequenceNote(
   sequence: MelodicSequence,
   step: number,
