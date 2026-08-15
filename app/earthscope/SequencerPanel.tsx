@@ -183,7 +183,7 @@ export function SequencerPanel({
             onClick={() => onRecordingChange(!recording)}
             type="button"
           >
-            Record
+            {recording ? "Record On" : "Record Off"}
           </button>
         </div>
       </div>
