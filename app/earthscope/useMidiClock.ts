@@ -13,6 +13,7 @@ import {
   midiClockOutputOptions,
   midiClockPulseIntervalMs,
   midiClockScheduleWindow,
+  midiClockStartTiming,
   midiOutputFingerprint,
   midiOutputTopology,
   MIDI_START,
@@ -25,7 +26,6 @@ import {
 } from "./midiClock";
 import { clampTempo } from "./tempo";
 
-const CLOCK_START_DELAY_MS = 10;
 const CLOCK_TEMPO_SETTLE_MS = 100;
 
 function changePreferenceCount(
@@ -456,7 +456,9 @@ export function useMidiClock({
     }));
 
     if (!initialAccess) {
-      const startAt = performance.now() + CLOCK_START_DELAY_MS;
+      const { downbeatAt: startAt } = midiClockStartTiming(
+        performance.now(),
+      );
       nextPulseAtRef.current = startAt;
       runningRef.current = true;
       startingRef.current = false;
@@ -521,10 +523,12 @@ export function useMidiClock({
       openedOutputs.map((output) => [output.id, output]),
     );
 
-    const startAt = performance.now() + CLOCK_START_DELAY_MS;
+    const { downbeatAt: startAt, startMessageAt } = midiClockStartTiming(
+      performance.now(),
+    );
     for (const output of openedOutputs) {
       try {
-        output.send([MIDI_START], startAt);
+        output.send([MIDI_START], startMessageAt);
       } catch (error) {
         outputErrors.push(outputFailure("Could not start MIDI clock", output, error));
         activeOutputsRef.current.delete(output.id);

@@ -13,6 +13,7 @@ import {
   midiClockPulseIntervalMs,
   MIDI_CLOCK_ROLLING_WINDOW,
   midiClockScheduleWindow,
+  midiClockStartTiming,
   midiOutputFingerprint,
   midiOutputTopology,
   midiInputFingerprint,
@@ -178,6 +179,14 @@ describe("MIDI clock", () => {
     expect(schedule.timestamps[0]).toBe(0);
     expect(schedule.timestamps.at(-1)).toBeCloseTo(479.166667);
     expect(schedule.nextPulseAt).toBeCloseTo(500);
+  });
+
+  test("sends Start before the shared downbeat and first clock pulse", () => {
+    const timing = midiClockStartTiming(1_000);
+
+    expect(timing.startMessageAt).toBe(1_010);
+    expect(timing.downbeatAt).toBe(1_020);
+    expect(timing.startMessageAt).toBeLessThan(timing.downbeatAt);
   });
 
   test("skips missed pulses instead of sending a burst", () => {

@@ -6,6 +6,8 @@ export const MIDI_CONTINUE = 0xfb;
 export const MIDI_STOP = 0xfc;
 export const MIDI_CLOCK_PPQN = 24;
 export const MIDI_CLOCK_PULSES_PER_SIXTEENTH = MIDI_CLOCK_PPQN / 4;
+export const MIDI_CLOCK_START_DELAY_MS = 10;
+export const MIDI_CLOCK_START_LEAD_MS = 10;
 
 export type ClockSource = "internal" | "midi";
 export type MidiRealtimeMessage =
@@ -48,6 +50,14 @@ export interface MidiClockOutputOption {
   fingerprint: string;
   id: string;
   name: string;
+}
+
+export function midiClockStartTiming(now: number) {
+  const startMessageAt = now + MIDI_CLOCK_START_DELAY_MS;
+  return {
+    downbeatAt: startMessageAt + MIDI_CLOCK_START_LEAD_MS,
+    startMessageAt,
+  };
 }
 
 interface ClearableMidiOutput {
