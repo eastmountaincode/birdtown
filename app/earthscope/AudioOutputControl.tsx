@@ -1,3 +1,4 @@
+import { AUDIO_OUTPUT_CHANNELS } from "./audioOutput";
 import type {
   AudioOutputChannel,
   AudioOutputDevice,
@@ -50,7 +51,7 @@ export function AudioOutputControl({
         </button>
       </div>
       <div className="audio-output-channel-control">
-        <label htmlFor="audio-output-channel">Output channel</label>
+        <label htmlFor="audio-output-channel">Output channels</label>
         <select
           id="audio-output-channel"
           onChange={(event) =>
@@ -58,9 +59,9 @@ export function AudioOutputControl({
           }
           value={channel}
         >
-          <option value="stereo">Stereo</option>
-          <option value="left">Channel 1</option>
-          <option value="right">Channel 2</option>
+          {AUDIO_OUTPUT_CHANNELS.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
         </select>
       </div>
       {error ? (

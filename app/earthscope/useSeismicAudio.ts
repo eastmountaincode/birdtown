@@ -124,8 +124,8 @@ export function useSeismicAudio({
   }, []);
 
   const setOutputChannel = useCallback((channel: AudioOutputChannel) => {
-    outputChannelRef.current = channel;
     audioRef.current?.setOutputChannel(channel);
+    outputChannelRef.current = channel;
   }, []);
 
   const togglePlayback = useCallback(async () => {

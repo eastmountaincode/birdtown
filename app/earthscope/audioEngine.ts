@@ -1,3 +1,4 @@
+import { createAudioOutputRouter } from "./audioOutputRouter";
 import { EARTHSCOPE_WINDOW_SECONDS } from "../lib/earthScopeConfig";
 import { browserBufferRate } from "./audioMath";
 import {
@@ -157,7 +158,7 @@ export async function startSeismicAudio(
   const gate = context.createGain();
   const sequenceGate = context.createGain();
   const master = context.createGain();
-  const outputPanner = context.createStereoPanner();
+  const outputRouter = createAudioOutputRouter(context);
   const repeatRateSignal = context.createConstantSource();
   const lowPassLfo = getLowPassLfo();
   analyser.fftSize = 1024;
@@ -196,22 +197,15 @@ export async function startSeismicAudio(
     .connect(sequenceGate)
     .connect(master)
     .connect(analyser);
-  outputPanner.connect(context.destination);
-
-  const setOutputChannel = (channel: AudioOutputChannel) => {
-    analyser.disconnect();
-    if (channel === "stereo") {
-      analyser.connect(context.destination);
-      return;
-    }
-
-    outputPanner.pan.setValueAtTime(
-      channel === "left" ? -1 : 1,
-      context.currentTime,
-    );
-    analyser.connect(outputPanner);
-  };
-  setOutputChannel(outputChannel);
+  analyser.connect(outputRouter.input);
+  const setOutputChannel = outputRouter.setChannel;
+  try {
+    setOutputChannel(outputChannel);
+  } catch (error) {
+    outputRouter.dispose();
+    await context.close();
+    throw error;
+  }
 
   let activeBuffer = makeLoopBuffer(context, initialValues, current.sampleRate);
   let activeSource = context.createBufferSource();
@@ -457,7 +451,7 @@ export async function startSeismicAudio(
       return Math.sqrt(energy / outputWaveform.length);
     },
     setOutputDevice: (deviceId) =>
-      setAudioContextOutput(context, deviceId),
+      outputRouter.setDevice(deviceId),
     setOutputChannel,
     setGateOpen: (open) => {
       if (open === gateOpen) return;

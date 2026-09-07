@@ -1,5 +1,5 @@
 import { AudioOutputControl } from "./AudioOutputControl";
-import type { AudioOutputDevice } from "./audioOutput";
+import type { AudioOutputChannel, AudioOutputDevice } from "./audioOutput";
 
 export function SettingsPanel({
   audioOutput,
@@ -8,12 +8,12 @@ export function SettingsPanel({
 }: {
   audioOutput: {
     choose: () => Promise<void>;
-    channel: "stereo" | "left" | "right";
+    channel: AudioOutputChannel;
     choosing: boolean;
     error: string | null;
     outputs: AudioOutputDevice[];
     select: (deviceId: string) => Promise<void>;
-    selectChannel: (channel: "stereo" | "left" | "right") => Promise<void>;
+    selectChannel: (channel: AudioOutputChannel) => Promise<void>;
     selected: AudioOutputDevice;
     supported: boolean;
   };

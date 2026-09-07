@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:audio": "node scripts/test-audio-routing.mjs"
   },
   "dependencies": {
     "luxon": "3.7.2",
@@ -27,6 +28,7 @@
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "web-audio-engine": "0.13.4"
   }
 }
