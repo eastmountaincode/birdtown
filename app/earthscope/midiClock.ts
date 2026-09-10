@@ -304,17 +304,21 @@ export function midiClockTempoFromIntervals(
     .sort((left, right) => left - right);
   if (valid.length === 0) return null;
 
-  const trimCount = valid.length >= 8
-    ? Math.max(1, Math.floor(valid.length * 0.1))
-    : 0;
-  const centralIntervals = valid.slice(
-    trimCount,
-    valid.length - trimCount,
+  const middle = Math.floor(valid.length / 2);
+  const median = valid.length % 2
+    ? valid[middle]
+    : (valid[middle - 1] + valid[middle]) / 2;
+  // Keep ordinary short/long jitter together: their elapsed time cancels out.
+  // Trimming equal numbers from each tail biases asymmetric IAC jitter.
+  // Only exclude gross gaps/bursts that cannot describe the current pulse rate.
+  const centralIntervals = valid.filter(
+    (interval) => interval >= median * 0.5 && interval <= median * 1.5,
   );
-  const averageInterval = centralIntervals.reduce(
+  const tempoIntervals = centralIntervals.length ? centralIntervals : valid;
+  const averageInterval = tempoIntervals.reduce(
     (total, interval) => total + interval,
     0,
-  ) / centralIntervals.length;
+  ) / tempoIntervals.length;
   return 60_000 / (averageInterval * MIDI_CLOCK_PPQN);
 }
 
@@ -331,6 +335,17 @@ export function externalClockTransportStartAt({
     pulseAtMs -
     Math.max(0, Math.floor(pulseCount)) *
       midiClockPulseIntervalMs(tempoBpm)
+  );
+}
+
+/** Keep a new tempo tied to the current MIDI position, not the old downbeat. */
+export function externalClockNeedsRebase(
+  pulseCount: number,
+  previousTempoBpm: number | null,
+  tempoBpm: number,
+) {
+  return pulseCount > 0 && (
+    tempoBpm !== previousTempoBpm || pulseCount % (MIDI_CLOCK_PPQN * 4) === 0
   );
 }
 

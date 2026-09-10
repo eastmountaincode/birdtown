@@ -4,6 +4,7 @@ import {
   canClearMidiOutputQueue,
   clearMidiOutputQueue,
   externalClockTransportStartAt,
+  externalClockNeedsRebase,
   listMidiClockInputs,
   listMidiClockOutputs,
   MIDI_CLOCK_CLEARABLE_WINDOW,
@@ -35,6 +36,8 @@ import {
   TEMPO_MAX,
   TEMPO_MIN,
 } from "../app/earthscope/tempo";
+import { sequencePositionAtTime } from "../app/earthscope/sequencer";
+import particleClockCapture from "./fixtures/particle-iac-113.json";
 
 const MIDI_PORT = {
   id: "midi-1",
@@ -105,6 +108,7 @@ describe("MIDI clock", () => {
 
     expect(midiClockTempoFromIntervals(intervals)).toBeCloseTo(120);
     expect(midiClockTempoFromIntervals([])).toBeNull();
+    expect(Number.isFinite(midiClockTempoFromIntervals([1, 1, 1, 100, 100, 100]))).toBe(true);
   });
 
   test("keeps neighboring jittered clock windows on the actual whole BPM", () => {
@@ -125,6 +129,13 @@ describe("MIDI clock", () => {
     ).toBe(199);
   });
 
+  test("keeps the recorded Particle-to-IAC clock at 113 BPM across every full window", () => {
+    const intervals = particleClockCapture.intervalsMs;
+    for (let end = 96; end <= intervals.length; end++) {
+      expect(Math.round(midiClockTempoFromIntervals(intervals.slice(end - 96, end)) ?? 0)).toBe(particleClockCapture.tempoBpm);
+    }
+  });
+
   test("rebases the shared transport to the incoming pulse position", () => {
     expect(
       externalClockTransportStartAt({
@@ -133,6 +144,32 @@ describe("MIDI clock", () => {
         tempoBpm: 120,
       }),
     ).toBeCloseTo(750);
+  });
+
+  test("tempo estimate changes preserve MIDI position after a long-running clock", () => {
+    const initialTempo = 120;
+    let previousTempo: number | null = initialTempo;
+    let startedAtMs = 0;
+    // Begin on a bar boundary ten minutes into a clock, then fluctuate by 1 BPM.
+    for (let pulse = 28_800; pulse < 29_088; pulse++) {
+      const atMs = pulse * midiClockPulseIntervalMs(initialTempo);
+      const tempo = pulse % 9 < 3 ? 120 : pulse % 9 < 6 ? 121 : 119;
+      if (externalClockNeedsRebase(pulse, previousTempo, tempo)) {
+        startedAtMs = externalClockTransportStartAt({ pulseAtMs: atMs, pulseCount: pulse, tempoBpm: tempo });
+        const position = sequencePositionAtTime({ length: 32, now: atMs / 1000 + 1e-8, startAt: startedAtMs / 1000, tempoBpm: tempo });
+        expect(position.step).toBe(Math.floor(pulse / 6) % 32);
+      } else if (tempo !== previousTempo) {
+        throw new Error("Tempo changed without preserving the MIDI position");
+      }
+      previousTempo = tempo;
+    }
+  });
+
+  test("stable clocks retain bar correction without rescheduling on every pulse", () => {
+    expect(externalClockNeedsRebase(97, 120, 120)).toBe(false);
+    expect(externalClockNeedsRebase(192, 120, 120)).toBe(true);
+    expect(externalClockNeedsRebase(97, 120, 121)).toBe(true);
+    expect(externalClockNeedsRebase(6, null, 97)).toBe(true);
   });
 
   test("keeps clock inputs separate and recommends external hardware", () => {

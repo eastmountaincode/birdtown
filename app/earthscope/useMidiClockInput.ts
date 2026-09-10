@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   externalClockTransportStartAt,
+  externalClockNeedsRebase,
   midiClockInputOptions,
   midiClockPulseIntervalMs,
   midiClockTempoFromIntervals,
@@ -19,7 +20,6 @@ import { clampTempo } from "./tempo";
 
 const TEMPO_INTERVAL_COUNT = MIDI_CLOCK_PPQN * 4;
 const TEMPO_INTERVAL_MINIMUM = MIDI_CLOCK_PULSES_PER_SIXTEENTH;
-const TRANSPORT_REBASE_PULSES = MIDI_CLOCK_PPQN * 4;
 
 export type ExternalClockStatus =
   | "MIDI disconnected"
@@ -245,8 +245,7 @@ export function useMidiClockInput({
         }));
       } else if (
         runningRef.current &&
-        pulseCountRef.current > 0 &&
-        pulseCountRef.current % TRANSPORT_REBASE_PULSES === 0
+        externalClockNeedsRebase(pulseCountRef.current, currentTempo, tempo)
       ) {
         onTransportChangeRef.current?.(
           true,
