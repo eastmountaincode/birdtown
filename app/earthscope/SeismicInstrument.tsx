@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { EARTHSCOPE_STATION } from "../lib/earthScopeConfig";
 import { useEarthScope } from "../lib/useDataLink";
 import {
   clampControl,
@@ -38,8 +37,8 @@ export function SeismicInstrument() {
   const [controls, setControls] = useState(DEFAULT_CONTROLS);
   const [hasHeldMidiKeys, setHasHeldMidiKeys] = useState(false);
   const hasHeldMidiKeysRef = useRef(false);
-  const [latchEnabled, setLatchEnabled] = useState(true);
-  const latchEnabledRef = useRef(true);
+  const [latchEnabled, setLatchEnabled] = useState(false);
+  const latchEnabledRef = useRef(false);
   const [lowPassLfo, setLowPassLfo] = useState(DEFAULT_LOW_PASS_LFO);
   const [clockSource, setClockSource] =
     useState<ClockSource>("internal");
@@ -188,12 +187,6 @@ export function SeismicInstrument() {
     <main>
       <section className="page-shell">
         <div className="instrument-toolbar">
-          <p className="instrument-status">
-            {EARTHSCOPE_STATION}
-            {signal.latency === null
-              ? null
-              : ` +++ latency: ${signal.latency.toFixed(1)}s`}
-          </p>
           <div className="instrument-actions">
             <label className="output-meter">
               output
