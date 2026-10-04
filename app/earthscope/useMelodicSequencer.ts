@@ -1,100 +1,78 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type SetStateAction } from "react";
 import { instrumentNoteForMidiNote } from "./midi";
+import { advanceSequenceRecording, type RecordingCursor } from "./sequenceRecording";
 import {
-  DEFAULT_SEQUENCE,
-  isSequencerNote,
-  retimeTransportForSequenceLength,
-  setSequenceLength,
-  setSequenceNote,
-  STOPPED_SEQUENCER_TRANSPORT,
-  type SequenceLength,
+  DEFAULT_SEQUENCE, isSequencerNote, retimeTransportForSequenceLength,
+  sequenceStepDurationSeconds, setSequenceLength, STOPPED_SEQUENCER_TRANSPORT,
+  type MelodicSequence, type SequenceLength,
 } from "./sequencer";
 import { useSequencerPlayhead } from "./useSequencerPlayhead";
 
 export function useMelodicSequencer(tempoBpm: number) {
-  const [sequence, setSequence] = useState(DEFAULT_SEQUENCE);
+  const [take, setTake] = useState<{ sequence: MelodicSequence; cursor: RecordingCursor | null }>({
+    sequence: DEFAULT_SEQUENCE, cursor: null,
+  });
+  const sequence = take.sequence;
   const [recording, setRecordingState] = useState(false);
-  const [transport, setTransport] = useState(
-    STOPPED_SEQUENCER_TRANSPORT,
-  );
+  const [transport, setTransport] = useState(STOPPED_SEQUENCER_TRANSPORT);
+  const transportRef = useRef(STOPPED_SEQUENCER_TRANSPORT);
   const recordingRef = useRef(false);
   const activeNoteRef = useRef<number | null>(null);
-  const activeStepRef = useRef<number | null>(null);
 
-  const recordStep = useCallback((step: number) => {
-    activeStepRef.current = step;
-    const note = activeNoteRef.current;
-    if (!recordingRef.current || note === null) return;
-    setSequence((current) => setSequenceNote(current, step, note));
-  }, []);
+  const recordUntil = useCallback((note: number | null, nowMs = performance.now(), finish = false) => {
+    if (!recordingRef.current) return;
+    const clock = transportRef.current;
+    if (!clock.running || clock.startedAtMs === null || nowMs < clock.startedAtMs) return;
+    const position = (nowMs - clock.startedAtMs) / (sequenceStepDurationSeconds(tempoBpm) * 1000);
+    setTake(current => {
+      const next = advanceSequenceRecording(current.sequence, current.cursor, position, note);
+      return finish ? { ...next, cursor: null } : next;
+    });
+  }, [tempoBpm]);
 
-  const activeStep = useSequencerPlayhead(
-    sequence,
-    transport,
-    tempoBpm,
-    recordStep,
-  );
+  const recordStep = useCallback(() => recordUntil(activeNoteRef.current), [recordUntil]);
+  const activeStep = useSequencerPlayhead(sequence, transport, tempoBpm, recordStep);
 
-  const setActiveMidiNote = useCallback((midiNote: number | null) => {
-    const note =
-      midiNote === null ? null : instrumentNoteForMidiNote(midiNote);
+  const setActiveMidiNote = useCallback((midiNote: number | null, receivedAtMs?: number) => {
+    const mapped = midiNote === null ? null : instrumentNoteForMidiNote(midiNote);
+    const note = mapped !== null && isSequencerNote(mapped) ? mapped : null;
+    recordUntil(note, receivedAtMs);
     activeNoteRef.current = note;
-    const step = activeStepRef.current;
-    if (
-      note !== null &&
-      isSequencerNote(note) &&
-      recordingRef.current &&
-      step !== null
-    ) {
-      setSequence((current) => setSequenceNote(current, step, note));
-    }
+  }, [recordUntil]);
+
+  const setRecording = useCallback((next: boolean) => {
+    if (!next) recordUntil(activeNoteRef.current, performance.now(), true);
+    recordingRef.current = next;
+    setRecordingState(next);
+    if (next) recordUntil(activeNoteRef.current);
+  }, [recordUntil]);
+
+  const setClockTransport = useCallback((running: boolean, startedAtMs: number | null) => {
+    recordUntil(activeNoteRef.current, performance.now(), true);
+    const next = { running, startedAtMs };
+    transportRef.current = next;
+    setTransport(next);
+    if (running) recordUntil(activeNoteRef.current);
+  }, [recordUntil]);
+
+  const setSequence = useCallback((update: SetStateAction<MelodicSequence>) => {
+    setTake(current => ({ ...current, sequence: typeof update === 'function' ? update(current.sequence) : update }));
   }, []);
 
-  const setRecording = useCallback(
-    (nextRecording: boolean) => {
-      recordingRef.current = nextRecording;
-      setRecordingState(nextRecording);
-      const step = activeStepRef.current;
-      if (nextRecording && step !== null) recordStep(step);
-    },
-    [recordStep],
-  );
+  const changeSequenceLength = useCallback((nextLength: SequenceLength) => {
+    const nowMs = performance.now();
+    recordUntil(activeNoteRef.current, nowMs, true);
+    const next = retimeTransportForSequenceLength({
+      currentLength: sequence.length, nextLength, nowMs, tempoBpm, transport: transportRef.current,
+    });
+    transportRef.current = next;
+    setTransport(next);
+    setSequence(current => setSequenceLength(current, nextLength));
+    recordUntil(activeNoteRef.current, nowMs);
+  }, [recordUntil, sequence.length, setSequence, tempoBpm]);
 
-  const setClockTransport = useCallback(
-    (running: boolean, startedAtMs: number | null) => {
-      setTransport({ running, startedAtMs });
-    },
-    [],
-  );
-
-  const changeSequenceLength = useCallback(
-    (nextLength: SequenceLength) => {
-      const nowMs = performance.now();
-      setTransport((currentTransport) =>
-        retimeTransportForSequenceLength({
-          currentLength: sequence.length,
-          nextLength,
-          nowMs,
-          tempoBpm,
-          transport: currentTransport,
-        }),
-      );
-      setSequence((current) => setSequenceLength(current, nextLength));
-    },
-    [sequence.length, tempoBpm],
-  );
-
-  return {
-    activeStep,
-    changeSequenceLength,
-    recording,
-    sequence,
-    setActiveMidiNote,
-    setClockTransport,
-    setRecording,
-    setSequence,
-    transport,
-  };
+  return { activeStep, changeSequenceLength, recording, sequence, setActiveMidiNote,
+    setClockTransport, setRecording, setSequence, transport };
 }

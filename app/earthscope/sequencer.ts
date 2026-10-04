@@ -9,10 +9,17 @@ export const SEQUENCER_MAX_NOTE = 72;
 export type SequenceLength = (typeof SEQUENCE_LENGTHS)[number];
 export type SequencerOctave = (typeof SEQUENCER_OCTAVES)[number];
 
+export interface SequenceGate {
+  start: number;
+  end: number;
+}
+
 export interface MelodicSequence {
   enabled: boolean;
   length: SequenceLength;
   notes: readonly (number | null)[];
+  // Missing timing means a hand-painted, full-step note.
+  gates?: readonly (readonly SequenceGate[] | null)[];
 }
 
 export interface SequencerTransport {
@@ -153,7 +160,9 @@ export function setSequenceNote(
     (_, index) => sequence.notes[index] ?? null,
   );
   notes[step] = note;
-  return { ...sequence, notes };
+  const gates = sequence.gates ? [...sequence.gates] : undefined;
+  if (gates) gates[step] = null;
+  return { ...sequence, notes, ...(gates ? { gates } : {}) };
 }
 
 export function clearSequence(sequence: MelodicSequence): MelodicSequence {
@@ -161,6 +170,7 @@ export function clearSequence(sequence: MelodicSequence): MelodicSequence {
   return {
     ...sequence,
     notes: Array<number | null>(MAX_SEQUENCE_STEPS).fill(null),
+    gates: undefined,
   };
 }
 

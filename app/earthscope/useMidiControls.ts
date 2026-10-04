@@ -68,7 +68,7 @@ export function useMidiControls({
 }: {
   controls: VoiceControls;
   lowPassLfo: LowPassLfoSettings;
-  onActiveNoteChange: (note: number | null) => void;
+  onActiveNoteChange: (note: number | null, receivedAtMs?: number) => void;
   onHeldKeysChange: (hasHeldKeys: boolean) => void;
   setControls: Dispatch<SetStateAction<VoiceControls>>;
   setLowPassLfo: Dispatch<SetStateAction<LowPassLfoSettings>>;
@@ -157,12 +157,12 @@ export function useMidiControls({
     [setControls, setRepeatsPerSecond],
   );
 
-  const setHeldNotes = useCallback((heldNotes: HeldMidiNote[]) => {
+  const setHeldNotes = useCallback((heldNotes: HeldMidiNote[], receivedAtMs?: number) => {
     heldNotesRef.current = heldNotes;
     const activeNote = heldNotes.at(-1)?.note ?? null;
     if (activeNote !== activeNoteRef.current) {
       activeNoteRef.current = activeNote;
-      onActiveNoteChangeRef.current(activeNote);
+      onActiveNoteChangeRef.current(activeNote, receivedAtMs);
     }
     const hasHeldKeys = heldNotes.length > 0;
     if (hasHeldKeys === hasHeldKeysRef.current) return;
@@ -264,7 +264,7 @@ export function useMidiControls({
             { inputId: input.id, note: noteMessage.note },
           ];
           selectRepeatRate(selectedRate);
-          setHeldNotes(nextHeldNotes);
+          setHeldNotes(nextHeldNotes, event.timeStamp);
         } else {
           const heldNotes = heldNotesRef.current;
           const wasActive =
@@ -281,7 +281,7 @@ export function useMidiControls({
               : null;
             if (fallbackRate !== null) selectRepeatRate(fallbackRate);
           }
-          setHeldNotes(remaining);
+          setHeldNotes(remaining, event.timeStamp);
         }
 
         return;

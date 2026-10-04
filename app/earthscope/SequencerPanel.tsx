@@ -236,6 +236,12 @@ export function SequencerPanel({
                             };
                             paintCell(step, note);
                           }}
+                          style={selected && sequence.gates?.[step] ? {
+                            background: `linear-gradient(to right, ${sequence.gates[step]!.flatMap(gate => [
+                              `white ${gate.start * 100}%`, `#111 ${gate.start * 100}%`,
+                              `#111 ${gate.end * 100}%`, `white ${gate.end * 100}%`,
+                            ]).join(', ')})`,
+                          } : undefined}
                           type="button"
                         />
                       </td>

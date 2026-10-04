@@ -52,37 +52,33 @@ export function buildSequenceSchedule({
     startAt,
     tempoBpm,
   });
-  const currentNote = sequence.notes[position.step] ?? null;
-  const events: SequenceScheduleEvent[] = [
-    {
-      at: now,
-      gateOpen: currentNote !== null,
-      rate: sequenceRateAtStep(
-        sequence,
-        position.step,
-        fallbackRate,
-      ),
-      step: position.step,
-    },
-  ];
   const stepDuration = sequenceStepDurationSeconds(tempoBpm);
-  let step = (position.step + 1) % sequence.length;
-  let stepAt = now + (1 - position.progress) * stepDuration;
-
+  const events: SequenceScheduleEvent[] = [];
+  let step = position.step;
+  let stepAt = now - position.progress * stepDuration;
   while (stepAt < until) {
     const note = sequence.notes[step] ?? null;
+    const gates = note === null ? [] : sequence.gates?.[step] ?? [{ start: 0, end: 1 }];
+    const progress = Math.max(0, (now - stepAt) / stepDuration);
+    const at = Math.max(now, stepAt);
     events.push({
-      at: stepAt,
-      gateOpen: note !== null,
-      rate:
-        note === null
-          ? null
-          : sequenceRateAtStep(sequence, step, fallbackRate),
+      at,
+      gateOpen: gates.some(gate => gate.start <= progress + 1e-9 && gate.end > progress + 1e-9),
+      rate: stepAt <= now || note !== null ? sequenceRateAtStep(sequence, step, fallbackRate) : null,
       step,
     });
+    for (const gate of gates) {
+      for (const [offset, gateOpen] of [[gate.start, true], [gate.end, false]] as const) {
+        const eventAt = stepAt + offset * stepDuration;
+        // Full-step releases belong to the next step: a genuinely held note
+        // should remain continuous across a column or loop boundary.
+        if ((!gateOpen && offset === 1) || eventAt <= at + 1e-9 || eventAt >= until) continue;
+        events.push({ at: eventAt, gateOpen, rate: null, step });
+      }
+    }
     step = (step + 1) % sequence.length;
     stepAt += stepDuration;
   }
-
-  return { events, scheduledUntil: stepAt };
+  // Refill from the actual horizon so a later in-step release cannot be skipped.
+  return { events, scheduledUntil: until };
 }
