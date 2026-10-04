@@ -242,6 +242,8 @@ export function SeismicInstrument() {
             connecting={midi.connecting}
             disconnect={midi.disconnect}
             inputs={midi.inputs}
+            keysEnabled={midi.keysEnabled}
+            onKeysEnabledChange={midi.setKeysEnabled}
             onInputChange={midi.selectInput}
             selectedInputKey={midi.selectedInputKey}
           />

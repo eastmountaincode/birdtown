@@ -43,6 +43,8 @@ interface HeldMidiNote {
   note: number;
 }
 
+const KEYS_PREFERENCE = "birdtown-midi-keys-enabled";
+
 const DISCONNECTED: MidiConnectionState = {
   connected: false,
   connecting: false,
@@ -77,6 +79,8 @@ export function useMidiControls({
 }) {
   const [connection, setConnection] =
     useState<MidiConnectionState>(DISCONNECTED);
+  const [keysEnabled, setKeysEnabled] = useState(true);
+  const keysEnabledRef = useRef(true);
   const accessGenerationRef = useRef(0);
   const accessRef = useRef<MIDIAccess | null>(null);
   const activeInputsRef = useRef(new Map<string, MIDIInput>());
@@ -184,6 +188,30 @@ export function useMidiControls({
     [setPitchBendRatio],
   );
 
+  const changeKeysEnabled = useCallback((enabled: boolean) => {
+    keysEnabledRef.current = enabled;
+    setKeysEnabled(enabled);
+    if (!enabled) {
+      // End the live override and any recording immediately, without closing MIDI.
+      setHeldNotes([], performance.now());
+      resetPitchBend();
+    }
+    try {
+      window.localStorage.setItem(KEYS_PREFERENCE, String(enabled));
+    } catch { /* The switch still works if storage is unavailable. */ }
+  }, [resetPitchBend, setHeldNotes]);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      try {
+        changeKeysEnabled(window.localStorage.getItem(KEYS_PREFERENCE) !== "false");
+      } catch { /* Keep the default when storage is unavailable. */ }
+    });
+    return () => { active = false; };
+  }, [changeKeysEnabled]);
+
   const closeInput = useCallback((input: MIDIInput) => {
     input.onmidimessage = null;
     const existing = closingByInputRef.current.get(input);
@@ -252,6 +280,7 @@ export function useMidiControls({
         noteMessage.channel === MPK_MINI_KEY_CHANNEL &&
         !isMpkDawPort(input)
       ) {
+        if (!keysEnabledRef.current) return;
         if (noteMessage.type === "on") {
           const selectedRate = playableRepeatRateForMidiNote(noteMessage.note);
           if (selectedRate === null) return;
@@ -293,6 +322,7 @@ export function useMidiControls({
         pitchBend.channel === MPK_MINI_KEY_CHANNEL &&
         !isMpkDawPort(input)
       ) {
+        if (!keysEnabledRef.current) return;
         const ratio = pitchBendRatio(pitchBend.value);
         pitchBendInputIdRef.current = ratio === 1 ? null : input.id;
         setPitchBendRatio(ratio);
@@ -581,6 +611,8 @@ export function useMidiControls({
 
   return {
     ...connection,
+    keysEnabled,
+    setKeysEnabled: changeKeysEnabled,
     connect,
     disconnect: release,
     selectInput,

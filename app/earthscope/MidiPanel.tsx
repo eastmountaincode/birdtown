@@ -6,6 +6,8 @@ export function MidiPanel({
   connecting,
   disconnect,
   inputs,
+  keysEnabled,
+  onKeysEnabledChange,
   onInputChange,
   selectedInputKey,
 }: {
@@ -14,6 +16,8 @@ export function MidiPanel({
   connecting: boolean;
   disconnect: () => void;
   inputs: MidiInputOption[];
+  keysEnabled: boolean;
+  onKeysEnabledChange: (enabled: boolean) => void;
   onInputChange: (inputKey: string) => Promise<void>;
   selectedInputKey: string | null;
 }) {
@@ -27,6 +31,13 @@ export function MidiPanel({
           type="button"
         >
           {connected ? "Disconnect" : connecting ? "Connecting..." : "Connect MIDI"}
+        </button>
+        <button
+          type="button"
+          aria-pressed={keysEnabled}
+          onClick={() => onKeysEnabledChange(!keysEnabled)}
+        >
+          Keys {keysEnabled ? "On" : "Off"}
         </button>
         {connected ? (
           <>
