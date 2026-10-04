@@ -299,8 +299,6 @@ legend {
 }
 
 .sequencer-step-control,
-.sequencer-step-options,
-.sequencer-step-options label,
 .sequencer-octave-control,
 .sequencer-octave-options,
 .sequencer-octave-options label {
@@ -314,12 +312,10 @@ legend {
   gap: 0.6rem;
 }
 
-.sequencer-step-options,
 .sequencer-octave-options {
   gap: 0.5rem;
 }
 
-.sequencer-step-options label,
 .sequencer-octave-options label {
   cursor: pointer;
 }
@@ -335,7 +331,6 @@ legend {
   gap: 0.25rem;
 }
 
-.sequencer-step-options input,
 .sequencer-octave-options input {
   min-height: auto;
   margin: 0;

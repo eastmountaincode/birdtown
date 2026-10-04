@@ -98,26 +98,17 @@ export function SequencerPanel({
     <fieldset className="plain-fieldset sequencer">
       <legend>Sequencer</legend>
       <div className="sequencer-controls">
-        <div className="sequencer-step-control">
-          <span id="sequencer-step-label">Steps</span>
-          <div
-            aria-labelledby="sequencer-step-label"
-            className="sequencer-step-options"
-            role="radiogroup"
+        <label className="sequencer-step-control">
+          Steps
+          <select
+            value={sequence.length}
+            onChange={(event) => onLengthChange(Number(event.target.value) as SequenceLength)}
           >
             {SEQUENCE_LENGTHS.map((length) => (
-              <label key={length}>
-                <input
-                  checked={sequence.length === length}
-                  name="sequencer-steps"
-                  onChange={() => onLengthChange(length)}
-                  type="radio"
-                />
-                {length}
-              </label>
+              <option key={length} value={length}>{length}</option>
             ))}
-          </div>
-        </div>
+          </select>
+        </label>
         <div className="sequencer-octave-control">
           <span id="sequencer-octave-label">Octave</span>
           <div
