@@ -19,6 +19,7 @@ export function advanceSequenceRecording(
   }
   const notes = [...sequence.notes];
   const gates = Array.from({ length: MAX_SEQUENCE_STEPS }, (_, i) => sequence.gates?.[i] ?? null);
+  const attacks = sequence.attacks ? [...sequence.attacks] : undefined;
   let writtenStep = cursor.writtenStep;
   // After a suspended tab, only the latest loop can remain in the pattern.
   let from = Math.max(cursor.position, Math.floor(position) - sequence.length);
@@ -29,6 +30,7 @@ export function advanceSequenceRecording(
     if (cursor.note !== null && writtenStep !== absoluteStep) {
       notes[step] = null;
       gates[step] = [];
+      if (attacks) attacks[step] = false;
       writtenStep = absoluteStep;
     }
     if (cursor.note !== null) {
@@ -47,7 +49,7 @@ export function advanceSequenceRecording(
     from = end;
   }
   return {
-    sequence: position === cursor.position ? sequence : { ...sequence, notes, gates },
+    sequence: position === cursor.position ? sequence : { ...sequence, notes, gates, ...(attacks ? { attacks } : {}) },
     cursor: { position, note: nextNote, writtenStep },
   };
 }

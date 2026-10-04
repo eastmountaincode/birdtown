@@ -58,7 +58,12 @@ export function buildSequenceSchedule({
   let stepAt = now - position.progress * stepDuration;
   while (stepAt < until) {
     const note = sequence.notes[step] ?? null;
-    const gates = note === null ? [] : sequence.gates?.[step] ?? [{ start: 0, end: 1 }];
+    const nextStep = (step + 1) % sequence.length;
+    const retriggerNext = sequence.attacks?.[nextStep] && sequence.notes[nextStep] != null;
+    const gateEnd = retriggerNext ? 1 - Math.min(0.024 / stepDuration, 0.25) : 1;
+    const gates = (note === null ? [] : sequence.gates?.[step] ?? [{ start: 0, end: 1 }])
+      .map(gate => ({ start: gate.start, end: Math.min(gate.end, gateEnd) }))
+      .filter(gate => gate.end > gate.start);
     const progress = Math.max(0, (now - stepAt) / stepDuration);
     const at = Math.max(now, stepAt);
     events.push({

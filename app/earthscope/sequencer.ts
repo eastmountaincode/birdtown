@@ -20,6 +20,8 @@ export interface MelodicSequence {
   notes: readonly (number | null)[];
   // Missing timing means a hand-painted, full-step note.
   gates?: readonly (readonly SequenceGate[] | null)[];
+  // Explicit attacks distinguish adjacent quantized hits from a held note.
+  attacks?: readonly boolean[];
 }
 
 export interface SequencerTransport {
@@ -162,7 +164,9 @@ export function setSequenceNote(
   notes[step] = note;
   const gates = sequence.gates ? [...sequence.gates] : undefined;
   if (gates) gates[step] = null;
-  return { ...sequence, notes, ...(gates ? { gates } : {}) };
+  const attacks = sequence.attacks ? [...sequence.attacks] : undefined;
+  if (attacks) attacks[step] = false;
+  return { ...sequence, notes, ...(gates ? { gates } : {}), ...(attacks ? { attacks } : {}) };
 }
 
 export function clearSequence(sequence: MelodicSequence): MelodicSequence {
@@ -171,6 +175,7 @@ export function clearSequence(sequence: MelodicSequence): MelodicSequence {
     ...sequence,
     notes: Array<number | null>(MAX_SEQUENCE_STEPS).fill(null),
     gates: undefined,
+    attacks: undefined,
   };
 }
 

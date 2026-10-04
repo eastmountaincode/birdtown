@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type SetStateAction,
 } from "react";
+import { quantizeSequence } from "./sequenceQuantize";
 import {
   canTransposeSequence,
   clearSequence,
@@ -159,6 +160,16 @@ export function SequencerPanel({
             ↑
           </button>
         </div>
+        <button
+          disabled={!sequence.notes.slice(0, sequence.length).some(note => note !== null)}
+          onClick={() => {
+            onRecordingChange(false);
+            onChange(quantizeSequence);
+          }}
+          type="button"
+        >
+          Quantize
+        </button>
         <button
           disabled={!sequence.notes.some((note) => note !== null)}
           onClick={() => onChange(clearSequence)}
