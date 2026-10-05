@@ -299,9 +299,7 @@ legend {
 }
 
 .sequencer-step-control,
-.sequencer-octave-control,
-.sequencer-octave-options,
-.sequencer-octave-options label {
+.sequencer-octave-control {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -310,14 +308,6 @@ legend {
 .sequencer-step-control,
 .sequencer-octave-control {
   gap: 0.6rem;
-}
-
-.sequencer-octave-options {
-  gap: 0.5rem;
-}
-
-.sequencer-octave-options label {
-  cursor: pointer;
 }
 
 .sequencer-action-buttons {
@@ -331,10 +321,8 @@ legend {
   gap: 0.25rem;
 }
 
-.sequencer-octave-options input {
-  min-height: auto;
-  margin: 0;
-  padding: 0;
+.sequencer-octave-control input {
+    width: 4.5rem;
 }
 
 .sequencer-grid-wrap {

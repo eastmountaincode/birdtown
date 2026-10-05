@@ -125,32 +125,61 @@ describe("melodic sequencer", () => {
     expect(movedDown.notes).toEqual(withHiddenNote.notes);
   });
 
-  test("keeps the whole pattern unchanged at the pitch limits", () => {
-    const atCeiling = setSequenceNote(DEFAULT_SEQUENCE, 0, 72);
-    const atFloor = setSequenceNote(DEFAULT_SEQUENCE, 0, 24);
+    test("transposes past the former limits, including hidden steps and negative pitches", () => {
+        const sequence = {
+            ...setSequenceNote(setSequenceNote(DEFAULT_SEQUENCE, 0, 28), 31, 24),
+            gates: [[{ start: 0.2, end: 0.8 }]],
+            attacks: [true],
+        };
+        let lower = sequence;
+        for (let octave = 0; octave < 4; octave++) {
+            expect(canTransposeSequence(lower, -12)).toBe(true);
+            lower = transposeSequence(lower, -12) as typeof sequence;
+        }
+        expect(lower.notes[0]).toBe(-20);
+        expect(lower.notes[31]).toBe(-24);
+        expect(lower.gates).toBe(sequence.gates);
+        expect(lower.attacks).toBe(sequence.attacks);
+        expect(transposeSequence(lower, 48).notes).toEqual(sequence.notes);
+        const higher = transposeSequence(setSequenceNote(DEFAULT_SEQUENCE, 0, 72), 24);
+        expect(higher.notes[0]).toBe(96);
+        expect(sequenceRateAtStep(lower, 0, 4)).toBeCloseTo(sequencerRepeatRate(28) / 16);
+        expect(sequenceRateAtStep(higher, 0, 4)).toBeCloseTo(sequencerRepeatRate(72) * 4);
+    });
 
-    expect(canTransposeSequence(DEFAULT_SEQUENCE, 12)).toBe(false);
-    expect(canTransposeSequence(atCeiling, 12)).toBe(false);
-    expect(transposeSequence(atCeiling, 12)).toBe(atCeiling);
-    expect(canTransposeSequence(atFloor, -12)).toBe(false);
-    expect(transposeSequence(atFloor, -12)).toBe(atFloor);
-  });
+    test("rejects invalid pitches and transpositions without changing the pattern", () => {
+        const sequence = setSequenceNote(DEFAULT_SEQUENCE, 0, 24);
+        expect(canTransposeSequence(DEFAULT_SEQUENCE, 12)).toBe(false);
+        for (const invalid of [NaN, Infinity, -Infinity, 0.5, 1e9, -1e9]) {
+            expect(setSequenceNote(sequence, 0, invalid)).toBe(sequence);
+            expect(transposeSequence(sequence, invalid)).toBe(sequence);
+            expect(sequencerNotesForOctave(invalid)).toEqual([]);
+        }
+    });
 
-  test("renders complete chromatic octaves through the C5 ceiling", () => {
-    expect(sequencerNotesForOctave(2)).toEqual([
-      47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36,
-    ]);
-    expect(sequencerNotesForOctave(5)).toEqual([72]);
-    expect(sequencerNoteName(36)).toBe("C2");
-    expect(sequencerNoteName(46)).toBe("A#2");
-    expect(sequencerNoteName(72)).toBe("C5");
-  });
+    test("renders and edits full octaves outside the former range", () => {
+        for (const octave of [-2, -1, 0, 2, 5, 6]) {
+            const notes = sequencerNotesForOctave(octave);
+            expect(notes).toHaveLength(12);
+            expect(notes[0]).toBe((octave + 1) * 12 + 11);
+            expect(notes[11]).toBe((octave + 1) * 12);
+            expect(setSequenceNote(DEFAULT_SEQUENCE, 0, notes[11]).notes[0]).toBe(notes[11]);
+        }
+        expect(sequencerNoteName(-12)).toBe("C-2");
+        expect(sequencerNoteName(-1)).toBe("B-2");
+        expect(sequencerNoteName(12)).toBe("C0");
+        expect(sequencerNoteName(36)).toBe("C2");
+        expect(sequencerNoteName(46)).toBe("A#2");
+        expect(sequencerNoteName(72)).toBe("C5");
+    });
 
-  test("maps pitch rows to the established C1 through C5 frequency range", () => {
-    expect(sequencerRepeatRate(24)).toBeCloseTo(32.7031957);
-    expect(sequencerRepeatRate(60)).toBeCloseTo(261.6255653);
-    expect(sequencerRepeatRate(72)).toBeCloseTo(523.2511306);
-  });
+    test("maps pitches above and below the former range to their frequencies", () => {
+        expect(sequencerRepeatRate(12)).toBeCloseTo(16.3515978);
+        expect(sequencerRepeatRate(24)).toBeCloseTo(32.7031957);
+        expect(sequencerRepeatRate(60)).toBeCloseTo(261.6255653);
+        expect(sequencerRepeatRate(72)).toBeCloseTo(523.2511306);
+        expect(sequencerRepeatRate(84)).toBeCloseTo(1046.5022612);
+    });
 
   test("runs each column as a sixteenth note at the shared tempo", () => {
     expect(sequenceStepDurationSeconds(120)).toBe(0.125);

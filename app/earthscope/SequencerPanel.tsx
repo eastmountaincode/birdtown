@@ -12,7 +12,6 @@ import {
   canTransposeSequence,
   clearSequence,
   SEQUENCE_LENGTHS,
-  SEQUENCER_OCTAVES,
   sequencerNoteName,
   sequencerNotesForOctave,
   setSequenceEnabled,
@@ -21,7 +20,6 @@ import {
   transposeSequence,
   type MelodicSequence,
   type SequenceLength,
-  type SequencerOctave,
 } from "./sequencer";
 
 export function SequencerPanel({
@@ -39,7 +37,8 @@ export function SequencerPanel({
   recording: boolean;
   sequence: MelodicSequence;
 }) {
-  const [octave, setOctave] = useState<SequencerOctave>(2);
+  const [octave, setOctave] = useState(2);
+  const [octaveInput, setOctaveInput] = useState("2");
   const paintRef = useRef<{
     mode: "draw" | "erase";
     pointerId: number;
@@ -109,33 +108,33 @@ export function SequencerPanel({
             ))}
           </select>
         </label>
-        <div className="sequencer-octave-control">
-          <span id="sequencer-octave-label">Octave</span>
-          <div
-            aria-labelledby="sequencer-octave-label"
-            className="sequencer-octave-options"
-            role="radiogroup"
-          >
-            {SEQUENCER_OCTAVES.map((value) => (
-              <label key={value}>
-                <input
-                  checked={octave === value}
-                  name="sequencer-octave"
-                  onChange={() => setOctave(value)}
-                  type="radio"
-                />
-                {value}
-              </label>
-            ))}
-          </div>
-        </div>
+        <label className="sequencer-octave-control">
+            Octave
+            <input
+                type="number"
+                step={1}
+                value={octaveInput}
+                onChange={(event) => {
+                    const value = event.target.value;
+                    setOctaveInput(value);
+                    if (value !== "" && sequencerNotesForOctave(Number(value)).length > 0) {
+                        setOctave(Number(value));
+                    }
+                }}
+                onBlur={() => setOctaveInput(String(octave))}
+            />
+        </label>
         <div className="sequencer-transpose-buttons">
           <button
             aria-label="Octave down"
             disabled={!canTransposeSequence(sequence, -12)}
-            onClick={() =>
-              onChange((current) => transposeSequence(current, -12))
-            }
+            onClick={() => {
+                onChange((current) => transposeSequence(current, -12));
+                if (sequencerNotesForOctave(octave - 1).length > 0) {
+                    setOctave(octave - 1);
+                    setOctaveInput(String(octave - 1));
+                }
+            }}
             type="button"
           >
             ↓
@@ -143,9 +142,13 @@ export function SequencerPanel({
           <button
             aria-label="Octave up"
             disabled={!canTransposeSequence(sequence, 12)}
-            onClick={() =>
-              onChange((current) => transposeSequence(current, 12))
-            }
+            onClick={() => {
+                onChange((current) => transposeSequence(current, 12));
+                if (sequencerNotesForOctave(octave + 1).length > 0) {
+                    setOctave(octave + 1);
+                    setOctaveInput(String(octave + 1));
+                }
+            }}
             type="button"
           >
             ↑

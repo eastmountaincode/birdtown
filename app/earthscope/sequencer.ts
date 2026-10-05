@@ -2,12 +2,8 @@ import { clampTempo } from "./tempo";
 
 export const SEQUENCE_LENGTHS = [8, 16, 24, 32] as const;
 export const MAX_SEQUENCE_STEPS = 32;
-export const SEQUENCER_OCTAVES = [1, 2, 3, 4, 5] as const;
-export const SEQUENCER_MIN_NOTE = 24;
-export const SEQUENCER_MAX_NOTE = 72;
 
 export type SequenceLength = (typeof SEQUENCE_LENGTHS)[number];
-export type SequencerOctave = (typeof SEQUENCER_OCTAVES)[number];
 
 export interface SequenceGate {
   start: number;
@@ -71,11 +67,9 @@ export function sequenceHasNotes(sequence: MelodicSequence) {
 }
 
 export function isSequencerNote(note: number) {
-  return (
-    Number.isInteger(note) &&
-    note >= SEQUENCER_MIN_NOTE &&
-    note <= SEQUENCER_MAX_NOTE
-  );
+    // AudioParams use float32 values; reject only unrepresentable pitches.
+    const rate = Math.fround(sequencerRepeatRate(note));
+    return Number.isSafeInteger(note) && Number.isFinite(rate) && rate > 0;
 }
 
 export function setSequenceEnabled(
@@ -204,13 +198,13 @@ export function transposeSequence(
   };
 }
 
-export function sequencerNotesForOctave(octave: SequencerOctave) {
-  const firstNote = (octave + 1) * 12;
-  const lastNote = Math.min(firstNote + 11, SEQUENCER_MAX_NOTE);
-  return Array.from(
-    { length: lastNote - firstNote + 1 },
-    (_, index) => lastNote - index,
-  );
+export function sequencerNotesForOctave(octave: number) {
+    const firstNote = (octave + 1) * 12;
+    const lastNote = firstNote + 11;
+    if (!Number.isSafeInteger(octave) || !isSequencerNote(firstNote) || !isSequencerNote(lastNote)) {
+        return [];
+    }
+    return Array.from({ length: 12 }, (_, index) => lastNote - index);
 }
 
 export function sequencerNoteName(note: number) {
@@ -221,7 +215,7 @@ export function sequencerNoteName(note: number) {
 }
 
 export function sequencerRepeatRate(note: number) {
-  const finiteNote = Number.isFinite(note) ? note : SEQUENCER_MIN_NOTE;
+  const finiteNote = Number.isFinite(note) ? note : 24;
   return 440 * Math.pow(2, (finiteNote - 69) / 12);
 }
 
