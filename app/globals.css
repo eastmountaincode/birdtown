@@ -618,3 +618,7 @@ legend {
 .preset-dialog__actions {
     justify-content: flex-end;
 }
+
+.preset-dialog__actions {
+    margin: 0.75rem 0;
+}

@@ -144,3 +144,15 @@ export function savePreset(storage: PresetStorage, name: string, setup: Instrume
     }
     return trimmedName;
 }
+
+export function deletePreset(storage: PresetStorage, name: string) {
+    const presets = readPresets(storage);
+    const remaining = presets.filter(preset => !samePresetName(preset.name, name));
+    if (remaining.length === presets.length) throw new Error("This setup is no longer available. Reopen Save / Load to refresh the list.");
+    try {
+        storage.setItem(PRESETS_STORAGE_KEY, JSON.stringify({ version: 1, presets: remaining }));
+    } catch {
+        throw new Error("Could not delete. Browser storage is unavailable; existing saves have not been changed.");
+    }
+    return remaining;
+}

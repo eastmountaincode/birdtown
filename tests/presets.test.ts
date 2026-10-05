@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { DEFAULT_CONTROLS } from "../app/earthscope/controls";
 import { DEFAULT_LOW_PASS_LFO } from "../app/earthscope/lowPassLfo";
 import { DEFAULT_SEQUENCE, setSequenceNote } from "../app/earthscope/sequencer";
-import { PRESETS_STORAGE_KEY, readPresets, savePreset, type InstrumentPreset } from "../app/earthscope/presets";
+import { PRESETS_STORAGE_KEY, deletePreset, readPresets, savePreset, type InstrumentPreset } from "../app/earthscope/presets";
 
 function memoryStorage() {
     const data = new Map<string, string>();
@@ -95,4 +95,24 @@ describe("saved Birdtown setups", () => {
         expect(() => savePreset({ ...storage, setItem: () => { throw Error("quota"); } }, "New", setup)).toThrow("Could not save");
         expect(storage.getItem(PRESETS_STORAGE_KEY)).toBe(before);
     });
+});
+
+
+test("deletion persists, preserves other saves, and supports deleting the final entry", () => {
+    const storage = memoryStorage();
+    savePreset(storage, "First", setup);
+    savePreset(storage, "Second", setup);
+    expect(deletePreset(storage, "first").map(preset => preset.name)).toEqual(["Second"]);
+    expect(readPresets(storage).map(preset => preset.name)).toEqual(["Second"]);
+    deletePreset(storage, "Second");
+    expect(readPresets(storage)).toEqual([]);
+    expect(() => deletePreset(storage, "Missing")).toThrow("no longer available");
+});
+
+test("deletion does not destroy saves when storage writes fail", () => {
+    const storage = memoryStorage();
+    savePreset(storage, "Original", setup);
+    const before = storage.getItem(PRESETS_STORAGE_KEY);
+    expect(() => deletePreset({ ...storage, setItem: () => { throw Error("denied"); } }, "Original")).toThrow("Could not delete");
+    expect(storage.getItem(PRESETS_STORAGE_KEY)).toBe(before);
 });
