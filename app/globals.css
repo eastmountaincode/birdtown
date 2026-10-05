@@ -573,3 +573,48 @@ legend {
     gap: 0.25rem;
   }
 }
+
+.preset-controls,
+.preset-dialog__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.preset-dialog {
+    width: min(24rem, calc(100% - 2rem));
+    max-height: calc(100% - 2rem);
+    overflow-y: auto;
+    margin: auto;
+    padding: 1rem;
+    border: 1px solid #000;
+    background: #fff;
+    color: var(--foreground);
+}
+
+.preset-dialog::backdrop {
+    background: rgb(0 0 0 / 35%);
+}
+
+.preset-dialog h2 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+    font-weight: normal;
+}
+
+.preset-dialog label {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.preset-dialog input,
+.preset-dialog select {
+    width: 100%;
+    min-width: 0;
+    padding: 0.25rem;
+}
+
+.preset-dialog__actions {
+    justify-content: flex-end;
+}

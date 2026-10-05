@@ -37,8 +37,11 @@ export function SequencerPanel({
   recording: boolean;
   sequence: MelodicSequence;
 }) {
-  const [octave, setOctave] = useState(2);
-  const [octaveInput, setOctaveInput] = useState("2");
+    const [octave, setOctave] = useState(() => {
+        const firstNote = sequence.notes.find(note => note !== null);
+        return firstNote === undefined ? 2 : Math.floor(firstNote / 12) - 1;
+    });
+    const [octaveInput, setOctaveInput] = useState(String(octave));
   const paintRef = useRef<{
     mode: "draw" | "erase";
     pointerId: number;

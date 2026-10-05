@@ -7,6 +7,8 @@ import {
   DEFAULT_CONTROLS,
   type VoiceControlKey,
 } from "./controls";
+import { PresetControls } from "./PresetControls";
+import type { InstrumentPreset } from "./presets";
 import { AboutDialog } from "./AboutDialog";
 import { ClockPanel } from "./ClockPanel";
 import { InstrumentControls } from "./InstrumentControls";
@@ -34,6 +36,7 @@ const SUPPORT_URL = "https://ko-fi.com/I3I332AJE";
 
 export function SeismicInstrument() {
   const signal = useEarthScope();
+  const [loadedSequenceId, setLoadedSequenceId] = useState(0);
   const [controls, setControls] = useState(DEFAULT_CONTROLS);
   const [hasHeldMidiKeys, setHasHeldMidiKeys] = useState(false);
   const hasHeldMidiKeysRef = useRef(false);
@@ -183,6 +186,16 @@ export function SeismicInstrument() {
   const stopClock =
     clockSource === "internal" ? midiClock.stop : externalClock.stop;
 
+    const loadPreset = (preset: InstrumentPreset) => {
+        stopClock();
+        sequencer.loadSequence(preset.sequence);
+        setControls(preset.controls);
+        setLowPassLfo(preset.lowPassLfo);
+        setInternalTempoBpm(preset.tempoBpm);
+        changeLatch(preset.latchEnabled);
+        setLoadedSequenceId(current => current + 1);
+    };
+
   return (
     <main>
       <section className="page-shell">
@@ -201,6 +214,10 @@ export function SeismicInstrument() {
               {audio.playing ? "Stop" : "Play"}
             </button>
           </div>
+            <PresetControls
+                setup={{ controls, lowPassLfo, sequence: sequencer.sequence, tempoBpm: internalTempoBpm, latchEnabled }}
+                onLoad={loadPreset}
+            />
         </div>
         {audio.error ? (
           <p className="instrument-error" role="alert">
@@ -229,6 +246,7 @@ export function SeismicInstrument() {
             tempoBpm={tempoBpm}
           />
           <SequencerPanel
+            key={loadedSequenceId}
             activeStep={sequencer.activeStep}
             onChange={sequencer.setSequence}
             onLengthChange={sequencer.changeSequenceLength}

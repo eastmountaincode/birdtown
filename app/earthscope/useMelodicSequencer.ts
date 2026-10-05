@@ -61,6 +61,14 @@ export function useMelodicSequencer(tempoBpm: number) {
     setTake(current => ({ ...current, sequence: typeof update === 'function' ? update(current.sequence) : update }));
   }, []);
 
+    const loadSequence = useCallback((next: MelodicSequence) => {
+        recordingRef.current = false;
+        setRecordingState(false);
+        transportRef.current = STOPPED_SEQUENCER_TRANSPORT;
+        setTransport(STOPPED_SEQUENCER_TRANSPORT);
+        setTake({ sequence: next, cursor: null });
+    }, []);
+
   const changeSequenceLength = useCallback((nextLength: SequenceLength) => {
     const nowMs = performance.now();
     recordUntil(activeNoteRef.current, nowMs, true);
@@ -73,6 +81,6 @@ export function useMelodicSequencer(tempoBpm: number) {
     recordUntil(activeNoteRef.current, nowMs);
   }, [recordUntil, sequence.length, setSequence, tempoBpm]);
 
-  return { activeStep, changeSequenceLength, recording, sequence, setActiveMidiNote,
+  return { activeStep, changeSequenceLength, loadSequence, recording, sequence, setActiveMidiNote,
     setClockTransport, setRecording, setSequence, transport };
 }
