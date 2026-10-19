@@ -47,7 +47,7 @@ const NOTE_NAMES = [
 
 export const DEFAULT_SEQUENCE: MelodicSequence = {
   enabled: true,
-  length: 16,
+  length: 32,
   notes: Array<number | null>(MAX_SEQUENCE_STEPS).fill(null),
 };
 

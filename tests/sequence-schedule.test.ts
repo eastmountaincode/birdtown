@@ -11,7 +11,7 @@ import {
 
 describe("sequencer audio schedule", () => {
   test("schedules the programmed columns exactly across the loop boundary", () => {
-    const step1 = setSequenceNote(DEFAULT_SEQUENCE, 0, 38);
+    const step1 = setSequenceNote({ ...DEFAULT_SEQUENCE, length: 16 }, 0, 38);
     const step9 = setSequenceNote(step1, 8, 38);
     const sequence = setSequenceNote(step9, 12, 38);
 

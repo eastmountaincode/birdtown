@@ -39,7 +39,7 @@ describe('recorded note articulation', () => {
   });
 
   test('records releases and onsets accurately across the loop boundary', () => {
-    const sequence = record([[15.5, 33], [16.2, null], [16.6, 33], [16.9, null]]);
+    const sequence = record([[15.5, 33], [16.2, null], [16.6, 33], [16.9, null]], { ...DEFAULT_SEQUENCE, length: 16 });
     expect(sequence.gates?.[15]).toEqual([{ start: .5, end: 1 }]);
     expect(sequence.gates?.[0]).toHaveLength(2);
     const events = schedule(sequence, 1.9, 2.13);

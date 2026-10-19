@@ -41,12 +41,12 @@ describe('sequence quantization', () => {
   });
 
   test('keeps a held note continuous, including across the loop edge', () => {
-    const snapped = quantizeSequence(recorded(15.2, 16.4));
-    expect(filled(snapped)).toEqual([1, 16]);
-    expect(snapped.attacks?.[15]).toBe(true);
+    const snapped = quantizeSequence(recorded(31.2, 32.4));
+    expect(filled(snapped)).toEqual([1, 32]);
+    expect(snapped.attacks?.[31]).toBe(true);
     expect(snapped.attacks?.[0]).toBe(false);
     expect(quantizeSequence(snapped)).toEqual(snapped);
-    const schedule = buildSequenceSchedule({ sequence: snapped, startAt:0, now:1.91, until:2.1, tempoBpm:120, fallbackRate:4 });
+    const schedule = buildSequenceSchedule({ sequence: snapped, startAt:0, now:3.91, until:4.1, tempoBpm:120, fallbackRate:4 });
     expect(schedule.events.every(e => e.gateOpen)).toBe(true);
   });
 
@@ -60,7 +60,7 @@ describe('sequence quantization', () => {
   });
 
   test('preserves hidden columns, enable state, and fully held loops', () => {
-    const hidden = setSequenceNote(DEFAULT_SEQUENCE, 24, 40);
+    const hidden = setSequenceNote(setSequenceLength(DEFAULT_SEQUENCE, 16), 24, 40);
     expect(quantizeSequence(hidden)).toBe(hidden);
     const full = { ...DEFAULT_SEQUENCE, enabled: false, notes: Array(32).fill(33) };
     const snapped = quantizeSequence(setSequenceLength(full, 8));

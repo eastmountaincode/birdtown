@@ -20,9 +20,9 @@ import {
 } from "../app/earthscope/sequencer";
 
 describe("melodic sequencer", () => {
-  test("starts as an empty 16-step sequence", () => {
+  test("starts as an empty 32-step sequence", () => {
     expect(DEFAULT_SEQUENCE.enabled).toBe(true);
-    expect(DEFAULT_SEQUENCE.length).toBe(16);
+    expect(DEFAULT_SEQUENCE.length).toBe(32);
     expect(SEQUENCE_LENGTHS).toEqual([8, 16, 24, 32]);
     expect(DEFAULT_SEQUENCE.notes).toHaveLength(32);
     expect(sequenceHasNotes(DEFAULT_SEQUENCE)).toBe(false);
