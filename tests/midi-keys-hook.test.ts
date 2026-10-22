@@ -82,3 +82,16 @@ test('saved Keys Off survives reload and MIDI disconnect/reconnect', async () =>
   h.send([0x90, 50, 100]);
   expect(h.onActiveNoteChange).not.toHaveBeenCalled();
 });
+
+test('knob seven changes volume from both MPK ports while Keys Off, including rapid turns', async () => {
+  const h = await setup();
+  h.midi.setKeysEnabled(false);
+  h.send([0xb0, 30, 127], h.daw);
+  expect(h.setControls).toHaveBeenLastCalledWith({ ...DEFAULT_CONTROLS, volume: 0.98 });
+  h.send([0xb0, 30, 127], h.input);
+  expect(h.setControls).toHaveBeenLastCalledWith({ ...DEFAULT_CONTROLS, volume: 0.96 });
+  h.send([0xb0, 30, 1], h.daw);
+  expect(h.setControls).toHaveBeenLastCalledWith({ ...DEFAULT_CONTROLS, volume: 0.98 });
+  expect(h.setLowPassLfo).not.toHaveBeenCalled();
+  expect(h.setRepeatsPerSecond).not.toHaveBeenCalled();
+});

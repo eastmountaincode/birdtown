@@ -85,6 +85,7 @@ describe("MPK mini controls", () => {
       25: "repeatsPerSecond",
       26: "cutoff",
       27: "resonance",
+      30: "volume",
     });
     expect(MPK_MINI_LFO_KNOB_CONTROLS).toEqual({
       28: "depth",
@@ -418,6 +419,22 @@ describe("MPK mini controls", () => {
 
     expect(first.resonance - DEFAULT_CONTROLS.resonance).toBeCloseTo(0.2);
     expect(second.resonance - first.resonance).toBeCloseTo(0.2);
+  });
+
+  test("knob seven adjusts only volume relatively and respects its limits", () => {
+    const controls = { ...DEFAULT_CONTROLS, volume: 0.5 };
+    expect(applyMidiControl(controls, 30, 1)).toEqual({
+      ...controls,
+      volume: 0.52,
+    });
+    expect(applyMidiControl(controls, 30, 127)).toEqual({
+      ...controls,
+      volume: 0.48,
+    });
+    expect(applyMidiControl(controls, 30, 63).volume).toBe(1);
+    expect(applyMidiControl(controls, 30, 65).volume).toBe(0);
+    expect(applyMidiControl(controls, 30, 0)).toBe(controls);
+    expect(applyMidiControl(controls, 30, 64)).toBe(controls);
   });
 
   test("ignores unrelated controllers", () => {

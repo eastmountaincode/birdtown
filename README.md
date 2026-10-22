@@ -21,12 +21,15 @@ CoreMIDI device causes the selected input to be reopened automatically.
 
 The knob mapping remains fixed—there is no knob-learning step:
 
-| Knob CC | Control |
-| --- | --- |
-| 24 | Samples in loop |
-| 25 | Repeats per second |
-| 26 | Low-pass |
-| 27 | Resonance |
+| Knob | CC | Control |
+| --- | --- | --- |
+| 1 | 24 | Samples in loop |
+| 2 | 25 | Repeats per second |
+| 3 | 26 | Low-pass |
+| 4 | 27 | Resonance |
+| 5 | 28 | Modulation depth |
+| 6 | 29 | Modulation rate |
+| 7 | 30 | Volume |
 
 The MPK program must send relative knob values.
 The spring-loaded pitch-bend wheel bends the selected pitch by two semitones

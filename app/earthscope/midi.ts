@@ -19,6 +19,7 @@ export const MPK_MINI_KNOB_CONTROLS: Readonly<Record<number, VoiceControlKey>> =
   25: "repeatsPerSecond",
   26: "cutoff",
   27: "resonance",
+  30: "volume",
 };
 
 export const MPK_MINI_LFO_KNOB_CONTROLS = {
